@@ -11,7 +11,7 @@ from aiogram.enums import ButtonStyle
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
-from database import get_player, save_player, get_boss, save_boss, asave_player, aget_player
+from database import get_player, save_player, get_boss, save_boss, asave_player, aget_player, player_lock
 from admin_panel import is_admin
 from characters import ALL_CHARACTERS
 from game_data import xp_for_level, effective_max_level
@@ -197,16 +197,19 @@ async def cb_boss_hit(event):
         is_featured = boss["template_id"] == get_weekly_featured_boss_id()
         rewards, speed_kill = be.distribute_rewards(boss, is_weekly_featured=is_featured)
         for ruid, r in rewards.items():
-            rp = await aget_player(ruid)
-            if not rp:
-                continue
-            rp["zen"] += r["zen"]
-            if r["titles"]:
-                rp.setdefault("boss_titles", [])
-                rp["boss_titles"].extend(r["titles"])
-            if r.get("items"):
-                rp.setdefault("inventory", []).extend(r["items"])
-            await asave_player(ruid, rp)
+            # 🔒 باگ‌فیکس: همون باگِ گم‌شدنِ لوت که تو region_boss_handlers
+            # فیکس شد — اینجا هم بدونِ player_lock بود. حالا اتمیکه.
+            async with player_lock(ruid):
+                rp = await aget_player(ruid)
+                if not rp:
+                    continue
+                rp["zen"] += r["zen"]
+                if r["titles"]:
+                    rp.setdefault("boss_titles", [])
+                    rp["boss_titles"].extend(r["titles"])
+                if r.get("items"):
+                    rp.setdefault("inventory", []).extend(r["items"])
+                await asave_player(ruid, rp)
         summary = await be.build_kill_summary(boss, rewards, speed_kill, _name_of)
         boss["alive"] = False
         save_boss(boss)
