@@ -589,11 +589,10 @@ async def cb_loot_location(cb: CallbackQuery, bot: Bot):
     grad_hint = onboarding.on_loot_visited(player)
     if grad_hint:
         await asave_player(uid, player)
-        from bot import main_kb, _is_group_chat
+        from bot import main_menu_text, _is_group_chat
         is_group = _is_group_chat(cb.message.chat.type)
         await cb.message.answer(
-            onboarding.strip_graduation_mark(grad_hint),
-            reply_markup=main_kb(is_group=is_group)
+            onboarding.strip_graduation_mark(grad_hint) + "\n\n" + main_menu_text(is_group=is_group)
         )
 
     loc_type = loc.get("type", "building")
