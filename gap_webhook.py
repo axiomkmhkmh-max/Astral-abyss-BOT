@@ -44,6 +44,13 @@ def build_gap_app(dispatcher) -> web.Application:
 
     app.router.add_post("/gap/webhook/{secret}", handle_webhook)
     app.router.add_get("/health", health)
+
+    # 🌌 مینی‌اپ تلگرام روی همین سرور/پورت سوار می‌شه (/app و /api/*)
+    try:
+        from miniapp_api import register_miniapp
+        register_miniapp(app)
+    except Exception as e:  # نبودنِ مینی‌اپ نباید وب‌هوکِ گپ رو بخوابونه
+        log.warning("miniapp ثبت نشد: %s", e)
     return app
 
 
