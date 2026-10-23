@@ -103,12 +103,12 @@ def generate_katana_name(existing_katanas) -> str:
 
 
 def generate_character(existing_names, existing_katanas):
-    """یه کرکترِ کاملاً جدید می‌سازه، هم‌ساختار با اسکیمِ RANDOM_CHARACTERS.
-    خروجی: (name, data_dict) — data_dict شاملِ element/color/katana/rarity/
-    powers/base_dmg هست + یه فلگِ generated=True برای تشخیصِ بعدی."""
+    """🆕 یه «کاتانای» کاملاً جدید می‌سازه (سیستمِ کرکتر حذف شده).
+    خروجی: (katana_name, data_dict) — کلیدِ نتیجه خودِ اسمِ کاتاناست و
+    data_dict['katana'] همون اسمه. فلگِ generated=True برای تشخیصِ بعدی."""
     rarity = _pick_rarity()
-    name = generate_unique_name(existing_names)
-    katana = generate_katana_name(existing_katanas)
+    taken = set(existing_names) | set(existing_katanas)
+    katana = generate_katana_name(taken)
     lo, hi = _DMG_RANGE[rarity]
     data = {
         "element": random.choice(_ELEMENTS),
@@ -119,4 +119,4 @@ def generate_character(existing_names, existing_katanas):
         "base_dmg": random.randint(lo, hi),
         "generated": True,
     }
-    return name, data
+    return katana, data

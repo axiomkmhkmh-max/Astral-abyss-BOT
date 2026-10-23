@@ -79,8 +79,24 @@ def gender_kb() -> InlineKeyboardMarkup:
 
 def char_pick_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="🎲 دریافت کاراکتر تصادفی", callback_data="pick_random_char"),
+        InlineKeyboardButton(text="🗡 انتخاب کاتانا", callback_data="pick_random_char"),
     ]])
+
+
+def _kat_offers_kb(offers) -> InlineKeyboardMarkup:
+    from katanas import ALL_KATANAS, RARITY_EMOJI as _RE
+    rows = []
+    for i, n in enumerate(offers):
+        e = _RE.get(ALL_KATANAS.get(n, {}).get("rarity", "common"), "⚔️")
+        rows.append([InlineKeyboardButton(text=f"{e} {n}", callback_data=f"kat_view:{i}")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def _kat_detail_kb(idx: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ انتخابش می‌کنم", callback_data=f"kat_pick:{idx}")],
+        [InlineKeyboardButton(text="🔙 برگشت به ۴ کاتانا", callback_data="kat_back")],
+    ])
 
 
 WELCOME_TEXT = (
@@ -99,7 +115,7 @@ def register_gap_core_handlers(dp: GapDispatcher):
     # شکست می‌خورد (چه با @یوزرنیم چه بدون اون).
     @dp.message(commands=["characters"])
     async def cmd_characters(msg: Message):
-        lines = ["📖 **لیست کاراکترهای ASTRAL ABYSS:**\n"]
+        lines = ["📖 **لیست کاتاناهای ASTRAL ABYSS:**\n"]
         for name, d in ALL_CHARACTERS.items():
             e = RARITY_EMOJI.get(d.get("rarity", "common"), "⚔️")
             lines.append(f"{e} **{name}** — {d.get('element', '—')}")
@@ -116,8 +132,14 @@ def register_gap_core_handlers(dp: GapDispatcher):
             await msg.answer(WELCOME_TEXT, reply_markup=char_pick_kb())
             return
 
+        if player.get("_awaiting_katana") and player.get("_katana_offers"):
+            from katana_choice import offers_text
+            await msg.answer(offers_text(player["_katana_offers"]),
+                             reply_markup=_kat_offers_kb(player["_katana_offers"]))
+            return
+
         if not player.get("character"):
-            await msg.answer("🎲 هنوز کاراکترت رو نگرفتی! دکمه‌ی زیر رو بزن:", reply_markup=char_pick_kb())
+            await msg.answer("🗡 هنوز کاتاناتو انتخاب نکردی! دکمه‌ی زیر رو بزن:", reply_markup=char_pick_kb())
             return
 
         await msg.answer(f"🌑 بازگشتی، {player['name']}...\nآبیس منتظرت بود.", reply_markup=main_menu_kb())
@@ -133,25 +155,96 @@ def register_gap_core_handlers(dp: GapDispatcher):
             await query.answer("✅ قبلاً کاراکترت رو گرفتی!", show_alert=True)
             return
 
-        char = assign_random_char()
-        spawn = random.choice(SPAWN_MAPS)
-        player["character"] = char
-        player["map"] = spawn
-        player["_awaiting_gender"] = True
-        try:
-            from character_lore import mark_character_seen
-            mark_character_seen(player, char)
-        except Exception:
-            pass
-        await asave_player(uid, player)
-
-        log_sync(f"👤 **NEW PLAYER (GAP)**\n🆔 `{uid}`\n🎴 کاراکتر: {char}\n📍 مپ: {spawn}", "PLAYER")
+        from katana_choice import offers_text
+        from database import roll_katana_offers
+        if not (player.get("_awaiting_katana") and player.get("_katana_offers")):
+            player["_katana_offers"] = roll_katana_offers(4)
+            player["_awaiting_katana"] = True
+            player["map"] = random.choice(SPAWN_MAPS)
+            await asave_player(uid, player)
+            log_sync(f"👤 **NEW PLAYER (GAP)**\n🆔 `{uid}`\n📍 مپ: {player['map']}", "PLAYER")
 
         await query.message.edit_text(
-            f"🎴 کاراکتر تو:\n\n{char_card(char)}\n\nیه قدم مونده — جنسیتِ کاراکترت رو انتخاب کن:",
-            reply_markup=gender_kb(),
+            offers_text(player["_katana_offers"]),
+            reply_markup=_kat_offers_kb(player["_katana_offers"]),
         )
         await query.answer()
+
+    async def _gap_katana_guard(query: CallbackQuery):
+        player = await aget_player(query.from_user.id)
+        if not player or player.get("_awaiting_katana") is not True or not player.get("_katana_offers"):
+            await query.answer("✅ کاتانات قبلاً انتخاب شده!", show_alert=True)
+            return None
+        return player
+
+    @dp.callback_query(data_startswith="kat_view:")
+    async def cb_kat_view(query: CallbackQuery):
+        player = await _gap_katana_guard(query)
+        if not player:
+            return
+        from katana_choice import detail_text
+        try:
+            idx = int(query.data.split(":", 1)[1])
+            name = player["_katana_offers"][idx]
+        except (ValueError, IndexError):
+            await query.answer("❌ گزینه‌ی نامعتبر.", show_alert=True)
+            return
+        await query.message.edit_text(detail_text(name), reply_markup=_kat_detail_kb(idx))
+        await query.answer()
+
+    @dp.callback_query(data="kat_back")
+    async def cb_kat_back(query: CallbackQuery):
+        player = await _gap_katana_guard(query)
+        if not player:
+            return
+        from katana_choice import offers_text
+        await query.message.edit_text(
+            offers_text(player["_katana_offers"]),
+            reply_markup=_kat_offers_kb(player["_katana_offers"]),
+        )
+        await query.answer()
+
+    @dp.callback_query(data_startswith="kat_pick:")
+    async def cb_kat_pick(query: CallbackQuery):
+        uid = query.from_user.id
+        player = await _gap_katana_guard(query)
+        if not player:
+            return
+        from katana_choice import offers_text
+        from database import roll_katana_offers, reserve_katana
+        try:
+            name = player["_katana_offers"][int(query.data.split(":", 1)[1])]
+        except (ValueError, IndexError):
+            await query.answer("❌ گزینه‌ی نامعتبر.", show_alert=True)
+            return
+
+        if not reserve_katana(name):
+            player["_katana_offers"] = roll_katana_offers(4)
+            await asave_player(uid, player)
+            await query.message.edit_text(
+                "😔 این کاتانا همین الان صاحب پیدا کرد!\n\n" + offers_text(player["_katana_offers"]),
+                reply_markup=_kat_offers_kb(player["_katana_offers"]),
+            )
+            await query.answer("کاتانا از دست رفت — ۴ تای جدید برات اومد", show_alert=True)
+            return
+
+        player["character"] = name
+        try:
+            from character_lore import mark_character_seen
+            mark_character_seen(player, name)
+        except Exception:
+            pass
+        player.pop("_awaiting_katana", None)
+        player.pop("_katana_offers", None)
+        player["_awaiting_gender"] = True
+        await asave_player(uid, player)
+        log_sync(f"🗡 **KATANA PICKED (GAP)**\n🆔 `{uid}`\n🗡 کاتانا: {name}", "PLAYER")
+
+        await query.message.edit_text(
+            f"🗡 کاتانات انتخاب شد:\n\n{char_card(name)}\n\nیه قدم مونده — جنسیتِ کاراکترت رو انتخاب کن:",
+            reply_markup=gender_kb(),
+        )
+        await query.answer("✅ کاتانا انتخاب شد!")
 
     @dp.callback_query(data_startswith="set_gender:")
     async def cb_set_gender(query: CallbackQuery):

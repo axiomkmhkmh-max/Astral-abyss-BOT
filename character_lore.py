@@ -2713,3 +2713,16 @@ ASTRAELION_LORE = {
         "ستارگان است و قدرتش با هر نبرد، بیشتر بیدار می‌شود."
     ),
 }
+
+
+# ─── 🆕 حذفِ کرکتر: لورها از اسمِ کرکتر به اسمِ کاتانا منتقل می‌شن ───────
+# پیشینه‌ها قبلاً با اسمِ کرکتر کلید خورده بودن؛ الان هویتِ پلیر اسمِ کاتاناشه،
+# پس همه‌ی دیکشنری‌های لور (in-place) به کلیدِ کاتانا re-key می‌شن.
+def _rekey_lore_to_katanas():
+    from katanas import LEGACY_CHARACTER_TO_KATANA as _L
+    for _d in (CHARACTER_LORE, MYTHIC_LORE, CHARACTER_LORE_TIER2):
+        for _old in list(_d.keys()):
+            if _old in _L:
+                _d[_L[_old]] = _d.pop(_old)
+
+_rekey_lore_to_katanas()
