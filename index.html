@@ -125,6 +125,18 @@ nav button[aria-current=page]::before{content:"";position:absolute;top:-1px;left
 .rail{position:absolute;left:10px;top:12px;display:grid;gap:8px}
 .rail button{--ch:8px;--bd:rgba(0,255,247,.42);--fill:rgba(3,8,12,.78);width:58px;height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10.5px}
 .rail button .i{width:22px;height:22px;color:var(--cy)}.rail button:active{--fill:#0b2026}
+
+/* ASTRAL ABYSS home-scene redesign: moonlit astral market + cyan citadel */
+#v-home .worldback, #v-char .worldback {
+  background-image: url('/app/assets/scene/home-market.webp?v=3') !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-color: #02060A !important;
+}
+#v-home .hero .tint, #v-char .hero .tint {
+  background: linear-gradient(180deg,rgba(2,6,10,.36) 0%,rgba(2,6,10,.04) 32%,rgba(2,6,10,.10) 62%,rgba(2,6,10,.82) 91%,#02060A 100%);
+}
+
 /* HUD و ناوبری هم‌زبان با صحنه */
 #hud{background:linear-gradient(180deg,#04090D,#060D12)}
 .pf{position:relative;width:48px;height:48px;flex:none}
