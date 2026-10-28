@@ -112,6 +112,16 @@ async def _auth(request):
     return uid, player, None
 
 
+def _xp_bounds(level):
+    """آستانه‌ی تجربه‌ی سطح قبلی و بعدی (برای نوار پیشرفت HUD)."""
+    try:
+        from game_data import xp_for_level
+        level = int(level or 1)
+        return (xp_for_level(level - 1) if level > 1 else 0), xp_for_level(level)
+    except Exception:
+        return 0, 0
+
+
 def _state(uid, player):
     s = get_ls(uid)
     now = time.time()
@@ -120,6 +130,7 @@ def _state(uid, player):
         "name": player.get("name") or player.get("first_name") or "",
         "level": player.get("level", 1),
         "xp": player.get("xp", 0),
+        "xp_next": _xp_bounds(player.get("level", 1))[1], "xp_prev": _xp_bounds(player.get("level", 1))[0],
         "gender": player.get("gender", "male"), "cls": player.get("class", "adventurer"),
         "hp": player.get("hp", 0), "max_hp": player.get("max_hp", 100),
         "zen": player.get("zen", 0),
@@ -1213,14 +1224,25 @@ ASSET_DIR = (HERE / "miniapp_assets").resolve()
 _ASSET_TYPES = {".webp", ".png", ".jpg", ".jpeg"}
 
 
+_ROOT_ASSETS = re.compile(r"^(?:(?:lobby|char|avatar)_(?:male|female)|world_map)\.webp$")
+
+
 async def asset(request):
     rel = request.match_info.get("path", "")
+    f = None
     try:
-        f = (ASSET_DIR / rel).resolve()
-        f.relative_to(ASSET_DIR)  # جلوگیری از ../ و خروج از پوشه
+        c = (ASSET_DIR / rel).resolve()
+        c.relative_to(ASSET_DIR)  # جلوگیری از ../ و خروج از پوشه
+        if c.is_file():
+            f = c
     except (ValueError, OSError):
-        return web.Response(status=404)
-    if f.suffix.lower() not in _ASSET_TYPES or not f.is_file():
+        pass
+    # اگر عکس‌های اصلی مینی‌اپ کنار miniapp_api.py (ریشه‌ی پروژه) آپلود شده باشند، از همان‌جا سرو می‌شوند
+    if f is None and _ROOT_ASSETS.match(rel):
+        c = HERE / rel
+        if c.is_file():
+            f = c
+    if f is None or f.suffix.lower() not in _ASSET_TYPES:
         return web.Response(status=404)
     return web.FileResponse(f, headers={"Cache-Control": "public, max-age=3600"})
 
