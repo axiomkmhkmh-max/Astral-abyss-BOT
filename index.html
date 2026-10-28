@@ -196,12 +196,12 @@ nav button[aria-current=page]::before{left:22%;right:22%;top:auto;bottom:calc(va
 .phero .lbg{background-position:40% 60%;filter:brightness(.7)}
 /* نقشه‌ی سه‌بعدی */
 #gl3d{position:absolute;inset:0;overflow:hidden;touch-action:none;background:#02070a;cursor:grab}#gl3d canvas{position:absolute;inset:0;display:block;width:100%;height:100%}
-#gl3d::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(130% 100% at 50% 45%,transparent 60%,rgba(2,8,12,.7))}
+#gl3d::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 100% at 50% 45%,transparent 52%,rgba(0,8,12,.88)),repeating-linear-gradient(0deg,rgba(0,255,247,.04) 0 1px,transparent 1px 3px)}
 #glmks{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .gk{position:absolute;left:0;top:0;width:44px;height:44px;margin:-34px 0 0 -22px;display:grid;place-items:center;pointer-events:auto;will-change:transform}
-.gk i{width:14px;height:14px;transform:rotate(45deg);background:var(--zc);border:2px solid #05080C;box-shadow:0 0 0 1.5px rgba(232,241,245,.9),0 0 12px var(--zc)}
-.gk b{position:absolute;top:32px;font-size:10.5px;font-weight:700;white-space:nowrap;color:#e8f1f5;text-shadow:0 0 4px #000,0 0 8px #000,0 1px 3px #000;pointer-events:none}
-.gk.on i,.gk.here i{box-shadow:0 0 0 2px var(--cy),0 0 18px var(--cy)}.gk.on b,.gk.here b{color:var(--cy);font-size:12px}
+.gk i{width:16px;height:16px;transform:rotate(45deg);background:rgba(2,10,14,.82);border:2px solid var(--zc);box-shadow:0 0 14px var(--zc),inset 0 0 7px var(--zc)}
+.gk b{display:none;position:absolute;top:32px;font-size:10.5px;font-weight:700;white-space:nowrap;color:#e8f1f5;text-shadow:0 0 4px #000,0 0 8px #000,0 1px 3px #000;pointer-events:none}
+.gk.on i,.gk.here i{border-color:var(--cy);box-shadow:0 0 0 2px rgba(0,255,247,.35),0 0 20px var(--cy),inset 0 0 8px var(--cy)}.gk.lb b,.gk.on b,.gk.here b,.gk.dest b{display:block}.gk.on b,.gk.here b{color:var(--cy);font-size:12px}
 .gk.here::before,.gk.dest::before{content:"";position:absolute;inset:3px;border:2px solid var(--cy);border-radius:50%;animation:pl 2.4s ease-out infinite}.gk.dest::before{border-style:dashed}
 body.no3d #gl3d{display:none}
 .zc{top:auto;bottom:auto;top:12px;left:12px}
@@ -351,337 +351,198 @@ const HS = {
   "Stormward Archipelago": [1244, 642], "The Sunken City": [168, 697], "Verdant Vale": [570, 698], "Emberhollow": [890, 704],
   "Dragonnest Peaks": [1255, 853], "Clockwork Depths": [135, 968], "Ruins of Orion-7": [560, 968], "Throne of Oblivion": [880, 968]
 };
-/* ───────── نقشه‌ی سه‌بعدی: WebGL خام، بدون هیچ کتابخانه‌ی بیرونی ───────── */
+/* ───────── نقشه‌ی سه‌بعدی هولوگرامی: WebGL2 خام، کاملاً پروسیجرال (بدون هیچ تصویر) ───────── */
 const GL3 = (() => {
-  const WW = 3.0, WD = 2.0, U0 = .018, U1 = .982, V0 = .028, V1 = .972;       // ابعاد دنیا + حذف قاب تصویر
-  const GW = 224, GH = 150;                                                      // شبکه‌ی زمین
-  const toW = (ix, iy) => [((ix / IW - U0) / (U1 - U0) - .5) * WW, ((iy / IH - V0) / (V1 - V0) - .5) * WD];
-  /* جای نقطه‌ی سه‌بعدی هر قلمرو روی تصویر + نوع پستی‌بلندی + رنگ ستون نور */
-  const RM = {
-    "Frostheim":             {p: [232, 168], t: "ice",    c: [.62, .86, 1.0]},
-    "Sands of Eternity":     {p: [530, 170], t: "dune",   c: [1.0, .74, .28]},
-    "Holy Luminarchy":       {p: [900, 165], t: "holy",   c: [1.0, .9, .5]},
-    "Celestial Spire":       {p: [1262, 150], t: "sky",   c: [.5, .82, 1.0]},
-    "Dreadgate Citadel":     {p: [172, 420], t: "dread",  c: [1.0, .24, .14]},
-    "Abyssal Black Market":  {p: [568, 430], t: "market", c: [.95, .62, .2]},
-    "Voidbreak Wastes":      {p: [850, 405], t: "void",   c: [.76, .34, 1.0]},
-    "Azure Tides Empire":    {p: [1110, 340], t: "sea",   c: [.3, .62, 1.0]},
-    "Stormward Archipelago": {p: [1250, 585], t: "sea",   c: [.36, .76, 1.0]},
-    "The Sunken City":       {p: [190, 610], t: "sunk",   c: [.2, 1.0, .86]},
-    "Verdant Vale":          {p: [570, 620], t: "vale",   c: [.46, 1.0, .4]},
-    "Emberhollow":           {p: [885, 625], t: "ember",  c: [1.0, .5, .1]},
-    "Dragonnest Peaks":      {p: [1250, 790], t: "dragon", c: [1.0, .86, .6]},
-    "Clockwork Depths":      {p: [140, 880], t: "clock",  c: [1.0, .7, .26]},
-    "Ruins of Orion-7":      {p: [520, 880], t: "orion",  c: [.2, .86, 1.0]},
-    "Throne of Oblivion":    {p: [880, 880], t: "throne", c: [.86, .86, .96]}
-  };
-  const KEYS = Object.keys(RM);
-  let cv, gl, ok = false, running = false, raf = 0, last = 0, tAcc = 0, W = 1, H = 1, res = 1, slow = 0;
-  let P = {}, buf = {}, tex = null, H0 = null, markers = [], hostEl, mkEl;
-  const cam = {x: 0, z: 0, d: 3.4, yaw: 0, pit: 1.0, cx: 0, cz: 0, cd: 3.6, cyaw: .35, cpit: .75, y: 0};
-  let sel = null, here = null, dest = null, routeA = null, routeB = null;
-
-  /* ───── ریاضی ماتریس ───── */
+  const TAU = 6.2832, GW = 150, GH = 100, WW = 3, WD = 2, EX = 1.5, EZ = 1;
+  const XS = [-1.12, -.375, .375, 1.12], ZS = [-.74, -.25, .25, .74];
+  const L = [["Frostheim", "ice", [.62, .86, 1]], ["Sands of Eternity", "dune", [1, .74, .28]], ["Holy Luminarchy", "holy", [1, .9, .5]], ["Celestial Spire", "sky", [.5, .82, 1]],
+    ["Dreadgate Citadel", "dread", [1, .24, .14]], ["Abyssal Black Market", "market", [.95, .62, .2]], ["Voidbreak Wastes", "void", [.76, .34, 1]], ["Azure Tides Empire", "sea", [.3, .62, 1]],
+    ["The Sunken City", "sunk", [.2, 1, .86]], ["Verdant Vale", "vale", [.46, 1, .4]], ["Emberhollow", "ember", [1, .5, .1]], ["Stormward Archipelago", "sea", [.36, .76, 1]],
+    ["Clockwork Depths", "clock", [1, .7, .26]], ["Ruins of Orion-7", "orion", [.2, .86, 1]], ["Throne of Oblivion", "throne", [.86, .86, .96]], ["Dragonnest Peaks", "dragon", [1, .86, .6]]];
+  const RM = {}, KEYS = []; L.forEach(([k, t, c], i) => { RM[k] = {t, c, w: [XS[i % 4], 0, ZS[i >> 2]]}; KEYS.push(k); });
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x)), mix = (a, b, t) => a + (b - a) * t, sst = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  const hash = (x, y) => { let h = x * 374761393 + y * 668265263; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };
+  const vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf); return mix(mix(hash(xi, yi), hash(xi + 1, yi), u), mix(hash(xi, yi + 1), hash(xi + 1, yi + 1), u), v); };
+  const fbm = (x, y) => vn(x, y) * .55 + vn(x * 2.1, y * 2.1) * .28 + vn(x * 4.3, y * 4.3) * .17, ridge = (x, y) => 1 - Math.abs(fbm(x, y) * 2 - 1);
+  /* ریاضی */
   const mul = (a, b) => { const o = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; };
   const persp = (fov, as, n, f) => { const t = 1 / Math.tan(fov / 2), o = new Float32Array(16); o[0] = t / as; o[5] = t; o[10] = (f + n) / (n - f); o[11] = -1; o[14] = 2 * f * n / (n - f); return o; };
-  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], nrm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
-  const crs = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-  const look = (e, c, u) => { const f = nrm(sub(c, e)), s = nrm(crs(f, u)), v = crs(s, f), o = new Float32Array(16);
-    o[0] = s[0]; o[4] = s[1]; o[8] = s[2]; o[1] = v[0]; o[5] = v[1]; o[9] = v[2]; o[2] = -f[0]; o[6] = -f[1]; o[10] = -f[2];
-    o[12] = -(s[0] * e[0] + s[1] * e[1] + s[2] * e[2]); o[13] = -(v[0] * e[0] + v[1] * e[1] + v[2] * e[2]); o[14] = f[0] * e[0] + f[1] * e[1] + f[2] * e[2]; o[15] = 1; return {m: o, f, s, v}; };
-  const clamp = (x, a, b) => Math.max(a, Math.min(b, x)), sst = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }, mix = (a, b, t) => a + (b - a) * t;
-
-  /* ───── نویز ───── */
-  const hash = (x, y) => { let h = x * 374761393 + y * 668265263; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };
-  const vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
-    return mix(mix(hash(xi, yi), hash(xi + 1, yi), u), mix(hash(xi, yi + 1), hash(xi + 1, yi + 1), u), v); };
-  const fbm = (x, y) => vn(x, y) * .55 + vn(x * 2.1, y * 2.1) * .28 + vn(x * 4.3, y * 4.3) * .17;
-  const ridge = (x, y) => 1 - Math.abs(fbm(x, y) * 2 - 1);
-  function blur(a, w, h, r, n) { const t = new Float32Array(a.length); for (let k = 0; k < n; k++) {
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let s = 0, c = 0; for (let i = -r; i <= r; i++) { const xx = x + i; if (xx >= 0 && xx < w) { s += a[y * w + xx]; c++; } } t[y * w + x] = s / c; }
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let s = 0, c = 0; for (let i = -r; i <= r; i++) { const yy = y + i; if (yy >= 0 && yy < h) { s += t[yy * w + x]; c++; } } a[y * w + x] = s / c; } } return a; }
-
-  /* ───── زمین: ارتفاع از تصویر + شکل‌دهی هر قلمرو ───── */
-  function buildTerrain(img) {
-    const sx = U0 * IW, sy = V0 * IH, sw = (U1 - U0) * IW, sh = (V1 - V0) * IH;
-    const c = document.createElement("canvas"); c.width = GW; c.height = GH; const x = c.getContext("2d", {willReadFrequently: true});
-    x.drawImage(img, sx, sy, sw, sh, 0, 0, GW, GH); const d = x.getImageData(0, 0, GW, GH).data, N = GW * GH;
-    const lum = new Float32Array(N), wet = new Float32Array(N), land = new Float32Array(N);
-    for (let i = 0; i < N; i++) { const r = d[i * 4] / 255, g = d[i * 4 + 1] / 255, b = d[i * 4 + 2] / 255, l = .299 * r + .587 * g + .114 * b, mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = (mx - mn) / (mx + 1e-3);
-      lum[i] = l; wet[i] = sst(.1, .28, b - Math.max(r, g * .9)) * sst(.78, .45, l) * sst(.22, .42, sat); land[i] = sst(-.02, .1, Math.max(g, r) - b); }
-    const L = blur(Float32Array.from(lum), GW, GH, 3, 3), L2 = blur(Float32Array.from(lum), GW, GH, 1, 1);
-    const px = i => (i % GW) / (GW - 1) * sw + sx, py = i => Math.floor(i / GW) / (GH - 1) * sh + sy;
-    const R = KEYS.map(k => ({k, t: RM[k].t, p: RM[k].p}));
-    const water = new Float32Array(N), hgt = new Float32Array(N), dp = new Float32Array(N);
-    for (let i = 0; i < N; i++) {
-      const X = px(i), Y = py(i); let h = .05 + .22 * (L[i] - .3) + .03 * (lum[i] - L2[i]);
-      let w = wet[i], deep = 0, mesa = 0;
-      for (const q of R) { const dx = X - q.p[0], dy = Y - q.p[1], dd = Math.hypot(dx, dy), g = Math.exp(-Math.pow(dd / 210, 2)), n = fbm(X * .012, Y * .012), rg = ridge(X * .011, Y * .011);
-        switch (q.t) {
-          case "ice": h += g * (.08 + .2 * rg * rg); w *= 1 - g; break;
-          case "dune": h += g * (.07 + .04 * Math.sin(X * .05 + 2 * Math.sin(Y * .022))); w *= 1 - g; break;
-          case "holy": h = mix(h, Math.round((.16 + .06 * n) * 14) / 14, g * .7); w *= 1 - g; break;
-          case "dread": h += g * (.1 + .15 * Math.abs(n * 2 - 1)); w *= 1 - g; break;
-          case "market": h = mix(h, .07 + .02 * n, g * .55); w *= 1 - g; break;
-          case "void": { const g2 = Math.exp(-Math.pow(dd / 120, 2)), rim = Math.exp(-Math.pow((dd - 150) / 40, 2)); h += -.17 * g2 + .09 * rim; w *= 1 - g; break; }
-          case "sea": deep = Math.max(deep, g * .6); break;
-          case "sunk": { const gs = Math.exp(-Math.pow(Math.hypot(dx * .8, dy) / 230, 2)); w = Math.max(w, gs * .95); deep = Math.max(deep, gs * 1.0); break; }
-          case "vale": h += g * (.04 + .08 * n); w *= 1 - g; break;
-          case "ember": h += g * (.07 + .13 * Math.abs(n * 2 - 1)) + .3 * Math.exp(-Math.pow(dd / 80, 2)); w *= 1 - g; break;
-          case "dragon": h += g * (.14 + .22 * rg * rg); w *= 1 - g * .8; break;
-          case "clock": h = mix(h, Math.round((.1 + .1 * n) / .035) * .035, g * .7); w *= 1 - g; break;
-          case "orion": h = mix(h, .05 + .01 * n, g * .6); w *= 1 - g; break;
-          case "throne": h += g * (.1 + .2 * rg) + .16 * Math.exp(-Math.pow(dd / 85, 2)); w *= 1 - g; break;
-          case "sky": { const gs = Math.exp(-Math.pow(Math.hypot(dx * .55, dy) / 260, 2)); mesa = Math.max(mesa, gs * land[i] * sst(.15, .45, 1 - wet[i])); w = Math.max(w * .6, gs * (1 - land[i]) * .7); deep = Math.max(deep, gs * .3); break; }
-        } }
-      if (mesa > 0) h = mix(h, .36 + .08 * fbm(X * .02, Y * .02), sst(.12, .5, mesa));
-      water[i] = clamp(w, 0, 1); hgt[i] = h; dp[i] = deep;
-    }
-    blur(water, GW, GH, 1, 2);
-    for (let i = 0; i < N; i++) { const w = water[i]; hgt[i] = mix(hgt[i], -.05 - dp[i] * .07, sst(.15, .6, w)); }
-    blur(hgt, GW, GH, 1, 1);
-    /* سکوی صاف زیر هر شهر */
-    const pad = {};
-    for (const q of R) { const [ix, iy] = q.p; const u = (ix - sx) / sw * (GW - 1), v = (iy - sy) / sh * (GH - 1); let hs = 0, cn = 0; for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) { const xx = clamp(Math.round(u) + a, 0, GW - 1), yy = clamp(Math.round(v) + b, 0, GH - 1); hs += hgt[yy * GW + xx]; cn++; } let hb = hs / cn; if (q.t === "sea" || q.t === "sunk" || q.t === "sky") hb = Math.max(hb, q.t === "sky" ? .34 : .0);
-      pad[q.k] = hb; for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) { const X = i / (GW - 1) * sw + sx, Y = j / (GH - 1) * sh + sy, dd = Math.hypot(X - ix, Y - iy); const t = sst(78, 38, dd); if (t > 0) { hgt[j * GW + i] = mix(hgt[j * GW + i], hb, t); water[j * GW + i] *= 1 - t; } } }
-    return {hgt, water, pad};
-  }
-  const hAt = (wx, wz) => { const u = (wx / WW + .5) * (GW - 1), v = (wz / WD + .5) * (GH - 1), i = clamp(Math.floor(u), 0, GW - 2), j = clamp(Math.floor(v), 0, GH - 2), fu = clamp(u - i, 0, 1), fv = clamp(v - j, 0, 1), h = H0.hgt;
-    return mix(mix(h[j * GW + i], h[j * GW + i + 1], fu), mix(h[(j + 1) * GW + i], h[(j + 1) * GW + i + 1], fu), fv); };
-
-  function terrainMesh() {
-    const {hgt, water} = H0, n = GW * GH, V = [], dx = WW / (GW - 1), dz = WD / (GH - 1);
-    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) { const id = j * GW + i, x = (i / (GW - 1) - .5) * WW, z = (j / (GH - 1) - .5) * WD, y = hgt[id];
-      const hl = hgt[j * GW + Math.max(i - 1, 0)], hr = hgt[j * GW + Math.min(i + 1, GW - 1)], hu = hgt[Math.max(j - 1, 0) * GW + i], hd = hgt[Math.min(j + 1, GH - 1) * GW + i];
-      const nx = (hl - hr) / (2 * dx), nz = (hu - hd) / (2 * dz), l = Math.hypot(nx, 1, nz);
-      V.push(x, y, z, nx / l, 1 / l, nz / l, i / (GW - 1) * (U1 - U0) + U0, j / (GH - 1) * (V1 - V0) + V0, 0, water[id]); }
-    const I = []; for (let j = 0; j < GH - 1; j++) for (let i = 0; i < GW - 1; i++) { const a = j * GW + i, b = a + 1, c = a + GW, d = c + 1; I.push(a, c, b, b, c, d); }
-    /* دیواره‌ی زیرین: دنیا مثل جزیره‌ی شناور */
-    const edge = [];
-    for (let i = 0; i < GW; i++) edge.push([i, 0, 0, -1]); for (let j = 1; j < GH; j++) edge.push([GW - 1, j, 1, 0]);
-    for (let i = GW - 2; i >= 0; i--) edge.push([i, GH - 1, 0, 1]); for (let j = GH - 2; j > 0; j--) edge.push([0, j, -1, 0]);
-    for (const [i, j, ox, oz] of edge) { const id = j * GW + i, x = (i / (GW - 1) - .5) * WW, z = (j / (GH - 1) - .5) * WD, u = i / (GW - 1) * (U1 - U0) + U0, v = j / (GH - 1) * (V1 - V0) + V0;
-      V.push(x, hgt[id], z, ox, 0, oz, u, v, .0001, 0); V.push(x * .96, -.32 - .08 * hash(i * 7, j * 3), z * .96, ox, 0, oz, u, v, 1, 0); }
-    const m = edge.length; for (let e = 0; e < m; e++) { const a = n + e * 2, b = n + ((e + 1) % m) * 2; I.push(a, a + 1, b, b, a + 1, b + 1); }
-    const out = V;
-    return {v: new Float32Array(out), i: new Uint32Array(I)};
-  }
-
-  /* ───── ساختمان‌ها و نمادهای سه‌بعدی هر قلمرو ───── */
-  const LM = [];
-  const xf = (tx, ty, tz, ry = 0, rx = 0, sc = 1) => { const cy = Math.cos(ry), sy = Math.sin(ry), cx = Math.cos(rx), sx = Math.sin(rx); return p => { let x = p[0] * sc, y = p[1] * sc, z = p[2] * sc; const y2 = y * cx - z * sx, z2 = y * sx + z * cx; y = y2; z = z2; return [x * cy + z * sy + tx, y + ty, -x * sy + z * cy + tz]; }; };
-  function tri(a, b, c, col, emi, an, cen, o) {
-    let n = crs(sub(b, a), sub(c, a)); n = nrm(n); const m = [(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3];
-    if (n[0] * (m[0] - o[0]) + n[1] * (m[1] - o[1]) + n[2] * (m[2] - o[2]) < 0) n = [-n[0], -n[1], -n[2]];
-    for (const p of [a, b, c]) LM.push(p[0], p[1], p[2], n[0], n[1], n[2], col[0], col[1], col[2], emi, an, cen[0], cen[1], cen[2]);
-  }
-  function put(tris, T, col, emi = 0, an = 0, oc, cen) { let c = [0, 0, 0], n = 0; for (const t of tris) for (const p of t) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; n++; } const o = T([c[0] / n, c[1] / n, c[2] / n]), ce = cen || T([0, 0, 0]); for (const t of tris) tri(T(t[0]), T(t[1]), T(t[2]), col, emi, an, ce, o); }
-  const ring = (r, s, y = 0) => Array.from({length: s}, (_, i) => [Math.cos(i / s * 6.2832) * r, y, Math.sin(i / s * 6.2832) * r]);
-  const coneG = (r, h, s = 6, r2 = 0) => { const a = ring(r, s), b = r2 > 0 ? ring(r2, s, h) : null, t = []; for (let i = 0; i < s; i++) { const j = (i + 1) % s; if (b) { t.push([a[i], a[j], b[i]], [b[i], a[j], b[j]]); } else t.push([a[i], a[j], [0, h, 0]]); } if (b) for (let i = 1; i < s - 1; i++) t.push([b[0], b[i], b[i + 1]]); return t; };
-  const boxG = (sx, sy, sz) => { const x = sx / 2, z = sz / 2, v = [[-x, 0, -z], [x, 0, -z], [x, 0, z], [-x, 0, z], [-x, sy, -z], [x, sy, -z], [x, sy, z], [-x, sy, z]], f = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7], [4, 5, 6, 7], [0, 1, 2, 3]], t = []; for (const q of f) t.push([v[q[0]], v[q[1]], v[q[2]]], [v[q[0]], v[q[2]], v[q[3]]]); return t; };
-  const octG = (r, sy = 1.6) => { const t = [[r, 0, 0], [-r, 0, 0], [0, r * sy, 0], [0, -r * sy, 0], [0, 0, r], [0, 0, -r]], f = [[0, 2, 4], [4, 2, 1], [1, 2, 5], [5, 2, 0], [4, 3, 0], [1, 3, 4], [5, 3, 1], [0, 3, 5]]; return f.map(q => [t[q[0]], t[q[1]], t[q[2]]]); };
-  const torG = (R, r, s = 24, ts = 6) => { const t = []; const P = (i, j) => { const a = i / s * 6.2832, b = j / ts * 6.2832; return [(R + r * Math.cos(b)) * Math.cos(a), r * Math.sin(b), (R + r * Math.cos(b)) * Math.sin(a)]; }; for (let i = 0; i < s; i++) for (let j = 0; j < ts; j++) { const a = P(i, j), b = P(i + 1, j), c = P(i, j + 1), d = P(i + 1, j + 1); t.push([a, b, c], [b, d, c]); } return t; };
-  function gear(x, y, z, R, h, teeth, col, emi, an) { const ce = [x, y, z]; put(coneG(R * .85, h, 16, R * .85), xf(x, y, z), col, emi, an, 0, ce);
-    for (let i = 0; i < teeth; i++) { const a = i / teeth * 6.2832; put(boxG(R * .28, h, R * .16), xf(x + Math.cos(a) * R * .92, y, z + Math.sin(a) * R * .92, -a), col, emi, an, 0, ce); } }
-  const C = {ice: [.7, .88, 1], ice2: [.45, .68, .95], sand: [.86, .6, .26], gold: [1, .82, .4], white: [.92, .94, .98], dark: [.07, .07, .1], iron: [.16, .17, .22], red: [1, .2, .1], purp: [.55, .25, .9], teal: [.15, .9, .8], green: [.25, .75, .3], bark: [.28, .2, .14], bone: [.9, .84, .7], brass: [.82, .55, .2], blue: [.25, .55, 1], navy: [.1, .18, .4], cy: [0, 1, .97]};
-  function spires(x, y, z, n, rad, hmin, hmax, rmin, rmax, seg, col, emi, seed, an = 0) { for (let i = 0; i < n; i++) { const a = hash(seed, i) * 6.2832, d = Math.sqrt(hash(i, seed + 3)) * rad, h = mix(hmin, hmax, hash(seed + 9, i)), r = mix(rmin, rmax, hash(i, seed + 5)); const px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d; put(coneG(r, h, seg), xf(px, hAt(px, pz) - .005, pz, hash(i, seed) * 3, (hash(seed, i + 7) - .5) * .25), col, emi, an, [0, h * .4, 0]); } }
-  function buildLM(k, x, y, z) {
-    const sp = spires;
-    switch (RM[k].t) {
-      case "ice": put(coneG(.06, .46, 7), xf(x, y, z), C.ice, .18); put(coneG(.036, .26, 6), xf(x - .09, y, z + .04), C.ice2, .12); put(coneG(.04, .3, 6), xf(x + .09, y, z - .02), C.ice, .14); put(boxG(.2, .06, .14), xf(x, y, z + .06), C.ice2, .05); sp(x, y, z, 9, .22, .08, .2, .012, .03, 5, C.ice, .12, 11); put(octG(.03, 2), xf(x, y + .52, z), C.cy, 1, 2); break;
-      case "dune": put(coneG(.14, .2, 4), xf(x, y, z, .78), C.sand, .05); put(coneG(.07, .13, 4), xf(x - .2, y, z + .05, .78), C.sand, .04); put(coneG(.012, .3, 4), xf(x + .13, y, z + .1), C.gold, .35); put(octG(.022, 1.6), xf(x, y + .24, z), C.gold, 1, 2); sp(x, y, z, 7, .26, .03, .08, .02, .05, 4, C.sand, .03, 21); break;
-      case "holy": put(boxG(.28, .035, .22), xf(x, y, z), C.white, .1); put(coneG(.045, .5, 8, .018), xf(x, y + .035, z), C.gold, .35); for (const [a, b] of [[-.1, -.07], [.1, -.07], [-.1, .07], [.1, .07]]) { put(coneG(.022, .12, 8), xf(x + a, y + .035, z + b), C.white, .12); put(coneG(.026, .1, 8), xf(x + a, y + .15, z + b), C.gold, .4); } put(torG(.07, .006, 24, 5), xf(x, y + .36, z), C.gold, 1, 1); put(octG(.022, 1.7), xf(x, y + .55, z), C.white, 1, 2); break;
-      case "sky": { const mk = (dx, dy, dz, s, c) => { put(coneG(.09 * s, .13 * s, 7), xf(x + dx, y + dy, z + dz, 0, 3.14159), C.bark, 0, 2); put(coneG(.1 * s, .02, 9, .1 * s), xf(x + dx, y + dy, z + dz), C.green, .08, 2); put(coneG(.03 * s, .22 * s, 6), xf(x + dx, y + dy + .02, z + dz), c, .5, 2); }; mk(0, .2, 0, 1.1, C.white); mk(-.2, .08, .1, .7, C.ice); mk(.18, .12, -.08, .8, C.gold); put(torG(.12, .006, 28, 5), xf(x, y + .32, z), C.cy, 1, 3); put(octG(.028, 1.8), xf(x, y + .58, z), C.cy, 1, 2); break; }
-      case "dread": put(coneG(.05, .38, 5), xf(x, y, z), C.dark, .02); put(coneG(.03, .3, 5), xf(x - .1, y, z + .03, .4, .12), C.iron, .02); put(coneG(.03, .3, 5), xf(x + .1, y, z - .03, 1, -.12), C.iron, .02); put(boxG(.26, .08, .12), xf(x, y, z + .06), C.dark, .02); sp(x, y, z, 8, .22, .1, .26, .012, .03, 4, C.dark, .02, 31); for (const [a, b] of [[0, 0], [-.1, .03], [.1, -.03]]) put(octG(.018, 2), xf(x + a, y + .34 + Math.abs(a) * -1.2, z + b), C.red, 1, 2); break;
-      case "market": for (let i = 0; i < 9; i++) { const a = i / 9 * 6.2832, r = .09 + .05 * hash(i, 4), px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r; put(boxG(.045, .03 + .03 * hash(i, 1), .045), xf(px, hAt(px, pz), pz, a), [.3 + .2 * hash(i, 2), .2, .12], .05); put(coneG(.034, .02, 4), xf(px, hAt(px, pz) + .045, pz, .78), C.gold, .45); } put(coneG(.07, .08, 12, .02), xf(x, y, z), C.brass, .15); put(octG(.022, 1.4), xf(x, y + .12, z), [1, .75, .3], 1, 2); break;
-      case "void": put(torG(.13, .014, 30, 6), xf(x, y + .14, z, 0, .35), C.purp, .9, 1); put(torG(.09, .012, 26, 6), xf(x, y + .14, z, 0, -.5), [.8, .4, 1], .9, 3); put(octG(.045, 1.5), xf(x, y + .14, z), [.9, .6, 1], 1, 2); sp(x, y, z, 7, .2, .06, .2, .008, .02, 4, [.3, .12, .5], .4, 41, 2); break;
-      case "sea": { put(coneG(.045, .36, 10, .03), xf(x, y, z), C.white, .08); put(coneG(.04, .045, 10), xf(x, y + .36, z), C.red, .3); put(octG(.018, 1.6), xf(x, y + .44, z), C.cy, 1, 2); for (let i = 0; i < 6; i++) { const a = i * 1.1 + .4, r = .16 + .06 * hash(i, 9), px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r; put(boxG(.05, .018, .02), xf(px, hAt(px, pz) + .01, pz, a), C.navy, .1, 2); put(coneG(.01, .06, 3), xf(px, hAt(px, pz) + .026, pz, a), C.white, .2, 2); } sp(x, y, z, 5, .2, .04, .12, .02, .04, 5, [.2, .3, .4], .06, 51); break; }
-      case "sunk": for (const [a, b, s] of [[0, 0, 1], [-.11, .05, .7], [.1, -.05, .75], [.04, .11, .6]]) { put(coneG(.06 * s, .06 * s, 12, .045 * s), xf(x + a, y, z + b), C.teal, .55); put(coneG(.04 * s, .09 * s, 12), xf(x + a, y + .06 * s, z + b), [.4, 1, .95], .7); put(coneG(.01, .24 * s, 5), xf(x + a, y + .15 * s, z + b), C.cy, 1); } put(torG(.15, .005, 30, 4), xf(x, y + .02, z), C.cy, 1, 3); break;
-      case "vale": for (const [a, b, s] of [[0, 0, 1.2], [-.14, .06, .8], [.13, -.05, .9], [.05, .13, .7], [-.07, -.12, .75]]) { put(coneG(.014 * s, .12 * s, 6, .01 * s), xf(x + a, y + (a ? hAt(x + a, z + b) - y : 0), z + b), C.bark, 0); put(octG(.07 * s, 1.0), xf(x + a, y + (a ? hAt(x + a, z + b) - y : 0) + .17 * s, z + b), C.green, .22); put(octG(.045 * s, 1.0), xf(x + a + .02, y + (a ? hAt(x + a, z + b) - y : 0) + .24 * s, z + b), [.5, 1, .45], .35); } sp(x, y, z, 14, .3, .03, .07, .014, .026, 5, [.12, .45, .2], .08, 61); break;
-      case "ember": put(coneG(.12, .32, 9, .04), xf(x, y, z), [.12, .06, .05], .12); put(coneG(.05, .06, 9), xf(x, y + .3, z), [1, .45, .08], 1, 2); put(coneG(.02, .3, 5), xf(x, y + .32, z), [1, .6, .15], 1, 2); sp(x, y, z, 8, .2, .07, .2, .012, .03, 4, [.18, .07, .05], .2, 71); for (let i = 0; i < 4; i++) { const a = i * 1.7, px = x + Math.cos(a) * .17, pz = z + Math.sin(a) * .17; put(octG(.014, 2), xf(px, hAt(px, pz) + .12, pz), [1, .45, .1], 1, 2); } break;
-      case "dragon": for (let i = 0; i < 7; i++) { const a = -1.4 + i * .45, px = x + Math.cos(a) * .15, pz = z + Math.sin(a) * .15 * .6; put(coneG(.016, .22 + .06 * Math.sin(i * .9), 5), xf(px, hAt(px, pz), pz, a, .5 * (i % 2 ? 1 : -1)), C.bone, .06); } put(coneG(.05, .34, 5), xf(x, y, z), C.bone, .08); put(coneG(.03, .22, 5), xf(x + .06, y, z + .02, 1, -.4), C.bone, .08); put(octG(.02, 1.5), xf(x, y + .38, z), [1, .8, .4], 1, 2); sp(x, y, z, 9, .26, .1, .3, .014, .036, 4, [.62, .55, .42], .04, 81); break;
-      case "clock": gear(x, y + .06, z, .13, .03, 12, C.brass, .3, 1); gear(x + .13, y + .08, z + .06, .08, .03, 9, [.7, .45, .16], .25, 3); put(coneG(.04, .3, 8, .03), xf(x - .06, y, z - .04), C.brass, .15); put(boxG(.09, .22, .09), xf(x - .06, y + .3, z - .04), C.brass, .15); put(octG(.022, 1.4), xf(x - .06, y + .56, z - .04), [1, .8, .3], 1, 2); sp(x, y, z, 6, .24, .04, .1, .018, .035, 6, [.5, .32, .12], .1, 91); break;
-      case "orion": for (let i = 0; i < 6; i++) { const a = i / 6 * 6.2832, px = x + Math.cos(a) * .12, pz = z + Math.sin(a) * .12; put(boxG(.03, .06 + .12 * hash(i, 3), .03), xf(px, hAt(px, pz), pz, a), [.06, .1, .16], .35); } put(coneG(.02, .3, 6), xf(x, y, z), [.1, .3, .45], .9); for (let i = 0; i < 5; i++) { const a = i * 1.3; put(octG(.02, 1.8), xf(x + Math.cos(a) * .15, y + .22 + .05 * i, z + Math.sin(a) * .15), C.cy, 1, 2); } put(torG(.1, .004, 28, 4), xf(x, y + .3, z, 0, .3), C.cy, 1, 1); break;
-      case "throne": put(coneG(.06, .5, 5, .02), xf(x, y, z), C.dark, .06); put(coneG(.03, .36, 4), xf(x - .09, y, z + .02, .2, .15), [.12, .12, .16], .04); put(coneG(.03, .36, 4), xf(x + .09, y, z + .02, 1, -.15), [.12, .12, .16], .04); put(boxG(.18, .05, .1), xf(x, y, z + .08), C.iron, .04); put(torG(.12, .008, 26, 5), xf(x, y + .22, z, 0, 0), C.red, .9, 1); put(octG(.02, 1.8), xf(x, y + .54, z), C.red, 1, 2); sp(x, y, z, 7, .22, .08, .2, .012, .03, 4, [.1, .1, .14], .04, 101); break;
-    }
-  }
-
-  /* ───── شیدرها ───── */
-  const HP = "#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n";
-  const SRC = {
-    sky: [`attribute vec2 aP; varying vec2 vP; void main(){ vP=aP; gl_Position=vec4(aP,.9999,1.); }`,
-      HP + `varying vec2 vP; uniform vec3 uF,uR,uU; uniform vec2 uTan; uniform float uT;
-      float h21(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
-      void main(){ vec3 d=normalize(uF+vP.x*uTan.x*uR+vP.y*uTan.y*uU); float h=d.y+.34;
-        vec3 top=vec3(.004,.012,.03), mid=vec3(.015,.085,.12), hor=vec3(.05,.26,.30);
-        vec3 c=mix(hor,mid,smoothstep(-.02,.22,h)); c=mix(c,top,smoothstep(.15,.75,h));
-        vec2 sp=d.xz/(abs(d.y)+.25)*46.; vec2 id=floor(sp); float st=step(.985,h21(id)); float tw=.5+.5*sin(uT*2.+h21(id+3.)*30.); c+=vec3(.8,1.,1.)*st*tw*smoothstep(.05,.4,h)*.9;
-        vec3 pd=normalize(vec3(-.42,.62,-.84)); float a=dot(normalize(d+vec3(0.,.34,0.)),pd); float disk=smoothstep(.9855,.9875,a); float rim=smoothstep(.9835,.9875,a)-smoothstep(.9875,.9895,a);
-        c=mix(c,vec3(.02,.08,.11),disk); c+=vec3(0.,1.,.96)*rim*.9; c+=vec3(.0,.5,.55)*pow(max(a,0.),90.)*.5;
-        float band=sin(d.x*5.+uT*.12)*.5+.5; c+=vec3(.0,.35,.3)*band*smoothstep(.1,.3,h)*smoothstep(.55,.2,h)*.12;
-        gl_FragColor=vec4(c,1.); }`],
-    ter: [`attribute vec3 aP,aN; attribute vec2 aU; attribute vec2 aA; uniform mat4 uVP; uniform float uT; varying vec3 vN,vW; varying vec2 vU; varying float vA,vWet;
-      void main(){ vec3 p=aP; float w=aA.y; p.y+=sin(p.x*18.+uT*1.5)*sin(p.z*15.-uT*1.2)*.006*w; vN=aN; vW=p; vU=aU; vA=aA.x; vWet=w; gl_Position=uVP*vec4(p,1.); }`,
-      HP + `varying vec3 vN,vW; varying vec2 vU; varying float vA,vWet; uniform sampler2D uTx; uniform float uT; uniform vec3 uC;
-      void main(){ vec3 tx=texture2D(uTx,vU).rgb; float lm=dot(tx,vec3(.299,.587,.114)); tx=mix(vec3(lm),tx,1.2);
-        vec3 N=normalize(vN); float wet=vWet; vec3 col=tx;
-        if(wet>.01){ vec2 q=vW.xz*34.; float r=sin(q.x*1.3+uT*1.5)+sin(q.y*1.1-uT*1.2)+sin((q.x+q.y)*.7+uT*.8); N=normalize(N+vec3(r*.07,0.,r*.06)*wet); col=mix(col,col*.62+vec3(0.,.035,.08),wet*.6); }
-        vec3 L=normalize(vec3(-.5,.75,.4)); float nd=dot(N,L)*.5+.5; col*=.4+1.0*nd;
-        vec3 V=normalize(uC-vW); vec3 Hh=normalize(L+V); col+=vec3(.5,.85,1.)*pow(max(dot(N,Hh),0.),70.)*wet*.9;
-        float lava=smoothstep(.25,.5,tx.r-max(tx.g*1.1,tx.b*1.3)); col+=vec3(1.,.3,.04)*lava*(.6+.4*sin(uT*1.7+vW.x*13.+vW.z*9.))*.6;
-        col+=vec3(0.,.8,.8)*pow(1.-max(dot(N,V),0.),4.)*.12;
-        float dist=length(uC-vW); float f=1.-exp(-dist*dist*.028); col=mix(col,vec3(.03,.14,.17),f*.88);
-        if(vA>.00005){ col=mix(col*.55,vec3(.01,.022,.034),smoothstep(0.,.9,vA)); col+=vec3(0.,.9,.85)*(1.-smoothstep(0.,.05,vA))*.5; }
-        gl_FragColor=vec4(col,1.); }`],
-    lm: [`attribute vec3 aP,aN,aC,aCe; attribute vec2 aM; uniform mat4 uVP; uniform float uT; varying vec3 vC,vN,vW; varying float vE;
-      void main(){ vec3 p=aP,n=aN; float an=aM.y;
-        if(an>.5){ float s=an<1.5?uT*.5:(an<2.5?0.:-uT*.9); if(an>1.5&&an<2.5){ p.y+=sin(uT*1.3+aCe.x*9.+aCe.z*7.)*.014; } else { float c=cos(s),sn=sin(s); vec3 d=p-aCe; p=aCe+vec3(d.x*c-d.z*sn,d.y,d.x*sn+d.z*c); n=vec3(n.x*c-n.z*sn,n.y,n.x*sn+n.z*c); } }
-        vC=aC; vN=n; vW=p; vE=aM.x; gl_Position=uVP*vec4(p,1.); }`,
-      HP + `varying vec3 vC,vN,vW; varying float vE; uniform float uT; uniform vec3 uC;
-      void main(){ vec3 N=normalize(vN); vec3 L=normalize(vec3(-.5,.75,.4)); float nd=max(dot(N,L),0.); vec3 V=normalize(uC-vW);
-        vec3 col=vC*(.34+.95*nd); col+=vC*vE*(1.1+.35*sin(uT*2.+vW.x*21.+vW.z*17.)); col+=vec3(0.,.9,.85)*pow(1.-max(dot(N,V),0.),3.)*.22;
-        float dist=length(uC-vW); float f=1.-exp(-dist*dist*.028); col=mix(col,vec3(.03,.14,.17),f*.85); gl_FragColor=vec4(col,1.); }`],
-    bm: [`attribute vec3 aP; attribute vec2 aU; uniform mat4 uVP; uniform vec3 uO; uniform vec2 uS; uniform vec3 uRt; varying vec2 vU;
-      void main(){ vU=aU; vec3 p=uO+uRt*aP.x*uS.x+vec3(0.,aP.y*uS.y,0.); gl_Position=uVP*vec4(p,1.); }`,
-      HP + `varying vec2 vU; uniform vec3 uCol; uniform float uT,uAl,uSd;
-      void main(){ float h=vU.y; float edge=1.-abs(vU.x*2.-1.); float a=pow(1.-h,1.4)*pow(edge,1.6); float fl=.65+.35*sin(h*22.-uT*3.+uSd*9.); a*=fl; a+=pow(1.-h,10.)*.6*edge; gl_FragColor=vec4(uCol*(1.+.6*(1.-h)),a*uAl); }`],
-    dc: [`attribute vec2 aP; uniform mat4 uVP; uniform vec3 uO; uniform float uR; varying vec2 vP; void main(){ vP=aP; gl_Position=uVP*vec4(uO+vec3(aP.x*uR,0.,aP.y*uR),1.); }`,
-      HP + `varying vec2 vP; uniform vec3 uCol; uniform float uT,uM,uAl;
-      void main(){ float d=length(vP); float a=atan(vP.y,vP.x); float ring=smoothstep(.06,0.,abs(d-.82)); float ring2=smoothstep(.03,0.,abs(d-.62))*.6;
-        float dash=uM>.5?step(.5,fract(a*1.9+uT*.6)):1.; float pulse=.7+.3*sin(uT*3.); float fill=smoothstep(.82,0.,d)*.18;
-        float rays=pow(abs(sin(a*6.-uT*.8)),12.)*smoothstep(.82,.2,d)*.35; float al=(ring*dash*pulse+ring2+fill+rays)*step(d,1.); gl_FragColor=vec4(uCol,al*uAl); }`],
-    pt: [`attribute vec3 aP; attribute vec4 aC; uniform mat4 uVP; uniform float uT,uSc; varying vec4 vC;
-      void main(){ vec3 p=aP; float ph=fract(aC.a+uT*.02*(.5+aC.r)); p.y+=ph*.55; p.x+=sin(uT*.4+aP.z*9.)*.05; p.z+=cos(uT*.35+aP.x*7.)*.05; vec4 q=uVP*vec4(p,1.); gl_Position=q; gl_PointSize=clamp(uSc*(.7+aC.g)/q.w,1.,9.); vC=vec4(.4+aC.b*.6,.95,.95-aC.b*.4,sin(ph*3.1416)); }`,
-      HP + `varying vec4 vC; void main(){ vec2 c=gl_PointCoord-.5; float d=length(c); float a=smoothstep(.5,0.,d); gl_FragColor=vec4(vC.rgb,vC.a*a*.85); }`],
-    rt: [`attribute float aT; uniform mat4 uVP; uniform vec3 uA,uB; uniform float uT,uSc; varying float vA;
-      void main(){ float t=fract(aT-uT*.18); vec3 p=mix(uA,uB,t); p.y+=sin(t*3.1416)*(.22+length(uB-uA)*.12); vec4 q=uVP*vec4(p,1.); gl_Position=q; gl_PointSize=clamp(uSc*(.9+sin(t*3.1416))/q.w,2.,12.); vA=sin(t*3.1416); }`,
-      HP + `varying float vA; void main(){ vec2 c=gl_PointCoord-.5; float a=smoothstep(.5,0.,length(c)); gl_FragColor=vec4(0.,1.,.97,a*vA); }`]
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], nrm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }, crs = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const look = (e, c) => { const f = nrm(sub(c, e)), s = nrm(crs(f, [0, 1, 0])), v = crs(s, f), o = new Float32Array(16); o[0] = s[0]; o[4] = s[1]; o[8] = s[2]; o[1] = v[0]; o[5] = v[1]; o[9] = v[2]; o[2] = -f[0]; o[6] = -f[1]; o[10] = -f[2];
+    o[12] = -(s[0] * e[0] + s[1] * e[1] + s[2] * e[2]); o[13] = -(v[0] * e[0] + v[1] * e[1] + v[2] * e[2]); o[14] = f[0] * e[0] + f[1] * e[1] + f[2] * e[2]; o[15] = 1; return o; };
+  /* زمین پروسیجرال: هر قلمرو پستی‌بلندی مخصوص خودش را دارد */
+  const PADY = t => t === "sunk" ? -.05 : t === "sea" ? -.01 : .03;
+  function F(t, x, z, d) { const n = fbm(x * 2.2, z * 2.2), g = ridge(x * 2.6, z * 2.6); switch (t) {
+    case "ice": return .05 + .22 * g * g * g; case "dune": return .03 + .05 * Math.sin(x * 9 + n * 5) + .05 * n; case "holy": return Math.floor((.04 + .1 * n) * 14) / 14; case "sky": return -.02 + .02 * n;
+    case "dread": return .05 + .17 * g * g; case "market": return .03 + .04 * n; case "void": return .03 + .05 * n - .1 * Math.exp(-d * d * 40) + .07 * Math.exp(-Math.pow((d - .26) * 14, 2));
+    case "sea": return -.03 + .012 * Math.sin(x * 22 + z * 18); case "sunk": return -.06 + .02 * n; case "vale": return .04 + .12 * n; case "ember": return .04 + .15 * g * g; case "dragon": return .06 + .22 * g * g * g;
+    default: return Math.floor((.05 + .12 * n) * 10) / 10; } }
+  function hfun(x, z) { let s = 0, h = 0, pad = 0, py = 0;
+    for (const k of KEYS) { const r = RM[k], dx = x - r.w[0], dz = z - r.w[2], d2 = dx * dx + dz * dz, w = Math.exp(-d2 / .17); if (w < .01) continue; s += w; h += w * F(r.t, x, z, Math.sqrt(d2)); const p = Math.exp(-d2 / .045); if (p > pad) { pad = p; py = PADY(r.t); } }
+    h = s ? h / s : 0; h = mix(h, py, Math.min(1, pad * 1.3)); return h * sst(0, .2, Math.min(EX - Math.abs(x), EZ - Math.abs(z))); }
+  function tint(x, z) { let s = 0, r = 0, g = 0, b = 0; for (const k of KEYS) { const q = RM[k], dx = x - q.w[0], dz = z - q.w[2], w = Math.exp(-(dx * dx + dz * dz) / .2); s += w; r += w * q.c[0]; g += w * q.c[1]; b += w * q.c[2]; } s = s || 1; return [r / s, g / s, b / s]; }
+  /* سازنده‌ی مش (فلت‌شید، ۱۰ فلوت برای هر رأس: موقعیت، نرمال، رنگ، درخشش) */
+  const tri = (m, a, b, c, col, g) => { const n = nrm(crs(sub(b, a), sub(c, a))); for (const p of [a, b, c]) m.push(p[0], p[1], p[2], n[0], n[1], n[2], col[0], col[1], col[2], g); };
+  const quad = (m, a, b, c, d, col, g) => { tri(m, a, b, c, col, g); tri(m, a, c, d, col, g); };
+  function frus(m, x, y, z, r0, r1, h, n, col, g, rot = 0) { for (let i = 0; i < n; i++) { const a0 = rot + i / n * TAU, a1 = rot + (i + 1) / n * TAU, C = Math.cos, S = Math.sin;
+    const A = [x + C(a0) * r0, y, z + S(a0) * r0], B = [x + C(a1) * r0, y, z + S(a1) * r0], Cc = [x + C(a1) * r1, y + h, z + S(a1) * r1], D = [x + C(a0) * r1, y + h, z + S(a0) * r1]; quad(m, A, B, Cc, D, col, g); if (r1 > 0) tri(m, D, Cc, [x, y + h, z], col, g); } }
+  function box(m, x, y, z, w, h, d, col, g) { const X = x + w, Y = y + h, Z = z + d, P = [[x, y, z], [X, y, z], [X, Y, z], [x, Y, z], [x, y, Z], [X, y, Z], [X, Y, Z], [x, Y, Z]];
+    [[0, 1, 2, 3], [5, 4, 7, 6], [4, 0, 3, 7], [1, 5, 6, 2], [3, 2, 6, 7], [4, 5, 1, 0]].forEach(q => quad(m, P[q[0]], P[q[1]], P[q[2]], P[q[3]], col, g)); }
+  function octa(m, x, y, z, r, sy, col, g) { const T = [x, y + r * sy, z], Bt = [x, y - r * sy, z], E = [[x + r, y, z], [x, y, z + r], [x - r, y, z], [x, y, z - r]]; for (let i = 0; i < 4; i++) { tri(m, T, E[i], E[(i + 1) % 4], col, g); tri(m, Bt, E[(i + 1) % 4], E[i], col, g); } }
+  function ring(m, x, y, z, R, w, n, col, g, skip) { for (let i = 0; i < n; i++) { if (skip && i % 2) continue; const a0 = i / n * TAU, a1 = (i + 1) / n * TAU, C = Math.cos, S = Math.sin;
+    quad(m, [x + C(a0) * (R - w), y, z + S(a0) * (R - w)], [x + C(a0) * (R + w), y, z + S(a0) * (R + w)], [x + C(a1) * (R + w), y, z + S(a1) * (R + w)], [x + C(a1) * (R - w), y, z + S(a1) * (R - w)], col, g); } }
+  const lite = c => [mix(c[0], 1, .55), mix(c[1], 1, .55), mix(c[2], 1, .55)], dim = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
+  /* لندمارک سه‌بعدی هر قلمرو */
+  const LM = {
+    ice: (m, x, y, z, c) => { for (let i = 0; i < 8; i++) { const a = i * 2.4, r = i ? .06 + .025 * (i % 3) : 0; frus(m, x + Math.cos(a) * r, y, z + Math.sin(a) * r, .034 - i * .002, 0, i ? .12 + .06 * ((i * 5) % 3) : .38, 5, i % 2 ? c : lite(c), .5); } },
+    dune: (m, x, y, z, c) => { for (let i = 0; i < 6; i++) { const s = .24 - i * .038; box(m, x - s / 2, y + i * .035, z - s / 2, s, .035, s, i % 2 ? c : dim(c, .7), .45); } frus(m, x + .15, y, z + .08, .014, 0, .26, 4, lite(c), .9, .78); frus(m, x - .14, y, z - .1, .01, 0, .18, 4, lite(c), .9, .78); },
+    holy: (m, x, y, z, c) => { frus(m, x, y, z, .05, .022, .3, 8, c, .5); frus(m, x, y + .3, z, .022, 0, .12, 8, lite(c), 1); ring(m, x, y + .15, z, .1, .005, 28, lite(c), 1); for (let i = 0; i < 4; i++) { const a = i * 1.571 + .78; frus(m, x + Math.cos(a) * .1, y, z + Math.sin(a) * .1, .018, 0, .15, 6, c, .6); } },
+    sky: (m, x, y, z, c) => { [[0, .18, .075], [-.07, .3, .05], [.08, .38, .04]].forEach(([dx, h, r], i) => { frus(m, x + dx, y + h, z + dx * .6, r, r * .5, .02, 10, lite(c), .7); frus(m, x + dx, y + h - r * 1.1, z + dx * .6, 0, r, r * 1.1, 8, dim(c, .6), .35); }); frus(m, x, y + .2, z, .02, 0, .22, 5, lite(c), 1); },
+    dread: (m, x, y, z, c) => { for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { frus(m, x + a * .1, y, z + b * .1, .026, .02, .2, 6, dim(c, .55), .3); frus(m, x + a * .1, y + .2, z + b * .1, .03, 0, .09, 6, c, 1); }
+      box(m, x - .1, y, z - .1, .2, .07, .02, dim(c, .5), .3); box(m, x - .1, y, z + .08, .2, .07, .02, dim(c, .5), .3); box(m, x - .06, y, z - .06, .12, .3, .12, dim(c, .6), .4); frus(m, x, y + .3, z, .07, 0, .13, 4, c, 1, .78); },
+    market: (m, x, y, z, c) => { for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; frus(m, x + Math.cos(a) * .11, y, z + Math.sin(a) * .11, .04, 0, .09, 4, i % 2 ? c : lite(c), .7, .78); } octa(m, x, y + .13, z, .065, .85, lite(c), 1); frus(m, x, y, z, .03, .03, .08, 8, dim(c, .6), .4); },
+    void: (m, x, y, z, c) => { octa(m, x, y + .26, z, .085, 1.7, c, 1); ring(m, x, y + .26, z, .15, .008, 40, lite(c), 1); ring(m, x, y + .1, z, .21, .006, 40, c, .8, 1); for (let i = 0; i < 7; i++) { const a = i * 1.1; octa(m, x + Math.cos(a) * .17, y + .05 + (i % 3) * .08, z + Math.sin(a) * .17, .016, 1.4, lite(c), .9); } },
+    sea: (m, x, y, z, c) => { frus(m, x, y, z, .034, .02, .3, 8, lite(c), .5); octa(m, x, y + .33, z, .03, 1, c, 1); frus(m, x, y + .27, z, .03, .03, .02, 8, c, .8); box(m, x + .12, y, z + .05, .07, .015, .025, dim(c, .7), .5); box(m, x - .14, y, z - .06, .06, .015, .022, dim(c, .7), .5); ring(m, x, y + .005, z, .17, .005, 36, c, .8); },
+    sunk: (m, x, y, z, c) => { octa(m, x, y + .06, z, .08, .75, c, .7); for (let i = 0; i < 5; i++) { const a = i / 5 * TAU; frus(m, x + Math.cos(a) * .15, y, z + Math.sin(a) * .15, .014, .014, .14 + (i % 2) * .06, 6, lite(c), .6); } ring(m, x, y + .14, z, .15, .004, 30, lite(c), 1); },
+    vale: (m, x, y, z, c) => { const tr = (px, pz, s) => { frus(m, px, y, pz, .008 * s, .008 * s, .05 * s, 5, [.6, .5, .3], .2); for (let j = 0; j < 3; j++) frus(m, px, y + (.04 + j * .05) * s, pz, (.045 - j * .01) * s, 0, .08 * s, 6, j % 2 ? c : lite(c), .6); }; tr(x, z, 2.2); for (let i = 0; i < 8; i++) { const a = i * .78 + .3, r = .09 + .035 * (i % 3); tr(x + Math.cos(a) * r, z + Math.sin(a) * r, 1); } },
+    ember: (m, x, y, z, c) => { frus(m, x, y, z, .17, .05, .24, 10, [.35, .12, .06], .3); frus(m, x, y + .24, z, .05, .035, .025, 10, c, 1); frus(m, x, y + .265, z, .035, 0, .06, 8, lite(c), 1); for (let i = 0; i < 4; i++) { const a = i * 1.57 + .5; box(m, x + Math.cos(a) * .1 - .006, y + .02, z + Math.sin(a) * .1 - .006, .012, .1, .012, c, 1); } },
+    dragon: (m, x, y, z, c) => { for (let i = 0; i < 7; i++) { const a = i / 7 * TAU, r = .075; frus(m, x + Math.cos(a) * r, y, z + Math.sin(a) * r, .03, .004, .22 + (i % 2) * .12, 5, i % 2 ? lite(c) : c, .6); } frus(m, x, y, z, .04, 0, .4, 5, c, .9); octa(m, x, y + .14, z, .03, 1, lite(c), 1); },
+    clock: (m, x, y, z, c) => { const gear = (gx, gz, R, tn) => { frus(m, gx, y, gz, R, R, .035, 20, dim(c, .55), .4); for (let i = 0; i < tn; i++) { const a = i / tn * TAU; box(m, gx + Math.cos(a) * (R + .012) - .01, y, gz + Math.sin(a) * (R + .012) - .01, .02, .035, .02, c, .8); } ring(m, gx, y + .037, gz, R * .6, .006, 20, lite(c), 1); frus(m, gx, y + .035, gz, .015, .015, .1, 6, lite(c), 1); }; gear(x - .06, z, .1, 10); gear(x + .12, z + .08, .06, 7); frus(m, x - .06, y + .13, z, .006, 0, .15, 4, lite(c), 1); },
+    orion: (m, x, y, z, c) => { frus(m, x, y, z, .012, .012, .6, 6, lite(c), 1); ring(m, x, y + .01, z, .12, .006, 36, c, 1); for (let i = 0; i < 4; i++) { const a = i * 1.57 + .78; box(m, x + Math.cos(a) * .13 - .02, y, z + Math.sin(a) * .13 - .02, .04, .1 + (i % 2) * .08, .04, dim(c, .55), .6); } octa(m, x, y + .4, z, .03, 1.4, c, 1); },
+    throne: (m, x, y, z, c) => { for (let i = 0; i < 4; i++) { const s = .26 - i * .05; box(m, x - s / 2, y + i * .03, z - s / 2, s, .03, s * .8, dim(c, .55 + i * .08), .4); } box(m, x - .04, y + .12, z - .03, .08, .06, .06, c, .6); box(m, x - .045, y + .18, z - .035, .09, .2, .02, lite(c), .9);
+      for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; frus(m, x + Math.cos(a) * .17, y, z + Math.sin(a) * .17, .013, 0, .12 + (i % 2) * .06, 4, dim(c, .7), .7); } }
   };
-  function prog(n) { const mk = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(n + ": " + gl.getShaderInfoLog(o)); return o; };
-    const p = gl.createProgram(); gl.attachShader(p, mk(gl.VERTEX_SHADER, SRC[n][0])); gl.attachShader(p, mk(gl.FRAGMENT_SHADER, SRC[n][1])); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(n + " link: " + gl.getProgramInfoLog(p));
-    const u = {}, cnt = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let i = 0; i < cnt; i++) { const a = gl.getActiveUniform(p, i); u[a.name] = gl.getUniformLocation(p, a.name); } return {p, u, a: n => gl.getAttribLocation(p, n)}; }
-  const mkBuf = (data, t = gl.ARRAY_BUFFER) => { const b = gl.createBuffer(); gl.bindBuffer(t, b); gl.bufferData(t, data, gl.STATIC_DRAW); return b; };
-  const attr = (pr, name, size, stride, off) => { const l = pr.a(name); if (l < 0) return l; gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, size, gl.FLOAT, false, stride * 4, off * 4); return l; };
-
-  /* ───── راه‌اندازی ───── */
-  function init(host, markerBox) {
-    hostEl = host; mkEl = markerBox;
-    cv = host.querySelector("canvas");
-    gl = cv.getContext("webgl", {antialias: true, alpha: false, powerPreference: "high-performance"}) || cv.getContext("experimental-webgl");
-    if (!gl) throw new Error("no webgl");
-    if (!gl.getExtension("OES_element_index_uint")) throw new Error("no uint index");
-    cv.addEventListener("webglcontextlost", e => { e.preventDefault(); ok = false; stop(); document.body.classList.add("no3d"); });
-    return new Promise((res, rej) => { const img = new Image(); img.onload = () => { try { setup(img); res(); } catch (e) { rej(e); } }; img.onerror = () => rej(new Error("map image")); img.src = MAPSRC; });
-  }
-  function setup(img) {
-    H0 = buildTerrain(img);
-    P.sky = prog("sky"); P.ter = prog("ter"); P.lm = prog("lm"); P.bm = prog("bm"); P.dc = prog("dc"); P.pt = prog("pt"); P.rt = prog("rt");
-    const t = terrainMesh(); buf.tv = mkBuf(t.v); buf.ti = mkBuf(t.i, gl.ELEMENT_ARRAY_BUFFER); buf.tn = t.i.length;
-    for (const k of KEYS) { const [wx, wz] = toW(...RM[k].p); const y = hAt(wx, wz); RM[k].w = [wx, y, wz]; buildLM(k, wx, y + .002, wz); }
-    buf.lv = mkBuf(new Float32Array(LM)); buf.ln = LM.length / 14;
-    buf.sky = mkBuf(new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1])); buf.dc = mkBuf(new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]));
-    const bq = []; [[-1, 0, 0, 1], [1, 0, 1, 1], [-1, 1, 0, 0], [1, 1, 1, 0]].forEach(([x, y, u, v]) => bq.push(x, y, 0, (x + 1) / 2, y)); buf.bm = mkBuf(new Float32Array(bq));
-    /* ذرات معلق */
-    const pts = []; for (let i = 0; i < 520; i++) { const x = (hash(i, 1) - .5) * WW, z = (hash(2, i) - .5) * WD; pts.push(x, hAt(x, z) + .02, z, hash(i, 3), hash(i, 4), hash(i, 5), hash(i, 6)); } buf.pt = mkBuf(new Float32Array(pts)); buf.pn = 520;
-    const rt = []; for (let i = 0; i < 46; i++) rt.push(i / 46); buf.rt = mkBuf(new Float32Array(rt)); buf.rn = 46;
-    /* بافت: توان دو برای میپ‌مپ */
-    const c2 = document.createElement("canvas"); c2.width = 2048; c2.height = 1024; c2.getContext("2d").drawImage(img, 0, 0, 2048, 1024);
-    tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c2);
-    gl.generateMipmap(gl.TEXTURE_2D); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    const an = gl.getExtension("EXT_texture_filter_anisotropic"); if (an) gl.texParameterf(gl.TEXTURE_2D, an.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(4, gl.getParameter(an.MAX_TEXTURE_MAX_ANISOTROPY_EXT)));
-    ok = true; resize();
-  }
-  function resize() {
-    if (!cv) return; const r = hostEl.getBoundingClientRect(); if (!r.width) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2) * res; W = Math.max(2, Math.round(r.width * dpr)); H = Math.max(2, Math.round(r.height * dpr));
-    cv.width = W; cv.height = H; cv.style.width = r.width + "px"; cv.style.height = r.height + "px";
-  }
-
-  /* ───── دوربین و رندر ───── */
-  let VP = null, camPos = [0, 1, 1], basis = null;
-  const FOV = .78;
-  function updCam(dt) {
-    const k = 1 - Math.exp(-dt * 5.2);
-    cam.cx += (cam.x - cam.cx) * k; cam.cz += (cam.z - cam.cz) * k; cam.cd += (cam.d - cam.cd) * k; cam.cyaw += (cam.yaw - cam.cyaw) * k; cam.cpit += (cam.pit - cam.cpit) * k;
-    const gy = hAt(clamp(cam.cx, -WW / 2, WW / 2), clamp(cam.cz, -WD / 2, WD / 2)); cam.y += (gy - cam.y) * (1 - Math.exp(-dt * 4));
-    const cp = Math.cos(cam.cpit), sp = Math.sin(cam.cpit);
-    camPos = [cam.cx + cam.cd * cp * Math.sin(cam.cyaw), cam.y + cam.cd * sp, cam.cz + cam.cd * cp * Math.cos(cam.cyaw)];
-    const v = look(camPos, [cam.cx, cam.y, cam.cz], [0, 1, 0]); basis = v; VP = mul(persp(FOV, W / H, .05, 14), v.m);
-  }
-  function proj(p) { const m = VP, x = p[0], y = p[1], z = p[2], w = m[3] * x + m[7] * y + m[11] * z + m[15]; if (w <= .01) return null;
-    return [(m[0] * x + m[4] * y + m[8] * z + m[12]) / w * .5 + .5, 1 - ((m[1] * x + m[5] * y + m[9] * z + m[13]) / w * .5 + .5), w]; }
-  function frame(now) {
-    raf = requestAnimationFrame(frame); if (!ok || !running) return;
-    const dt = Math.min(.06, (now - last) / 1000 || .016); last = now; tAcc += dt;
-    if (dt > .034) { if (++slow > 40 && res > .62) { res = Math.max(.62, res - .14); slow = 0; resize(); } } else slow = Math.max(0, slow - 1);
-    updCam(dt); draw(tAcc % 3600); placeMarkers();
-  }
-  function draw(T) {
-    gl.viewport(0, 0, W, H); gl.clearColor(.01, .03, .04, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE);
-    let p = P.sky; gl.useProgram(p.p); gl.bindBuffer(gl.ARRAY_BUFFER, buf.sky); const l0 = attr(p, "aP", 2, 2, 0);
-    gl.uniform3fv(p.u.uF, basis.f); gl.uniform3fv(p.u.uR, basis.s); gl.uniform3fv(p.u.uU, basis.v); gl.uniform2f(p.u.uTan, Math.tan(FOV / 2) * W / H, Math.tan(FOV / 2)); gl.uniform1f(p.u.uT, T);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.disableVertexAttribArray(l0);
-    gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
-    /* زمین */
-    p = P.ter; gl.useProgram(p.p); gl.bindBuffer(gl.ARRAY_BUFFER, buf.tv); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buf.ti);
-    const ls = [attr(p, "aP", 3, 10, 0), attr(p, "aN", 3, 10, 3), attr(p, "aU", 2, 10, 6), attr(p, "aA", 2, 10, 8)];
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex); gl.uniform1i(p.u.uTx, 0); gl.uniformMatrix4fv(p.u.uVP, false, VP); gl.uniform1f(p.u.uT, T); gl.uniform3fv(p.u.uC, camPos);
-    gl.drawElements(gl.TRIANGLES, buf.tn, gl.UNSIGNED_INT, 0); ls.forEach(l => l >= 0 && gl.disableVertexAttribArray(l));
-    /* حلقه‌های روی زمین: موقعیت من / انتخاب / مقصد */
-    p = P.dc; gl.useProgram(p.p); gl.bindBuffer(gl.ARRAY_BUFFER, buf.dc); const ld = attr(p, "aP", 2, 2, 0); gl.uniformMatrix4fv(p.u.uVP, false, VP); gl.uniform1f(p.u.uT, T);
-    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(-2, -6);
-    const ring = (k, col, rad, mode, al) => { if (!k || !RM[k]) return; const w = RM[k].w; gl.uniform3f(p.u.uO, w[0], w[1] + .006, w[2]); gl.uniform1f(p.u.uR, rad); gl.uniform3fv(p.u.uCol, col); gl.uniform1f(p.u.uM, mode); gl.uniform1f(p.u.uAl, al); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); };
-    ring(here, [0, 1, .97], .2, 0, 1); ring(dest, [0, 1, .97], .22, 1, 1); if (sel && sel !== here) ring(sel, [1, 1, 1], .19, 1, .9);
-    gl.disable(gl.POLYGON_OFFSET_FILL); gl.disableVertexAttribArray(ld); gl.disable(gl.BLEND);
-    /* ساختمان‌ها */
-    p = P.lm; gl.useProgram(p.p); gl.bindBuffer(gl.ARRAY_BUFFER, buf.lv); const ll = [attr(p, "aP", 3, 14, 0), attr(p, "aN", 3, 14, 3), attr(p, "aC", 3, 14, 6), attr(p, "aM", 2, 14, 9), attr(p, "aCe", 3, 14, 11)];
-    gl.uniformMatrix4fv(p.u.uVP, false, VP); gl.uniform1f(p.u.uT, T); gl.uniform3fv(p.u.uC, camPos); gl.drawArrays(gl.TRIANGLES, 0, buf.ln); ll.forEach(l => l >= 0 && gl.disableVertexAttribArray(l));
-    /* ستون‌های نور + ذرات + مسیر سفر */
+  const BL = {
+    hospital: (m, x, y, z) => { box(m, x - .022, y, z - .022, .044, .034, .044, [.75, .95, 1], .45); box(m, x - .005, y + .035, z - .016, .01, .002, .032, [1, .2, .35], 1); box(m, x - .016, y + .035, z - .005, .032, .002, .01, [1, .2, .35], 1); },
+    bank: (m, x, y, z) => { box(m, x - .028, y, z - .02, .056, .026, .04, [1, .8, .3], .5); for (let i = 0; i < 4; i++) frus(m, x - .021 + i * .014, y + .026, z - .016, .004, .004, .02, 5, [1, .9, .6], .8); frus(m, x, y + .046, z, .04, 0, .02, 4, [1, .8, .3], .9, .78); },
+    house: (m, x, y, z) => { box(m, x - .02, y, z - .02, .04, .024, .04, [.4, 1, .9], .5); frus(m, x, y + .024, z, .032, 0, .024, 4, [.3, .8, .75], .7, .78); },
+    building: (m, x, y, z) => { box(m, x - .016, y, z - .016, .032, .08, .032, [.55, .72, .95], .4); for (let i = 0; i < 3; i++) box(m, x - .017, y + .015 + i * .022, z - .017, .034, .006, .034, [.8, 1, 1], 1); }
+  };
+  let bld = {};
+  /* ───── وضعیت ───── */
+  let cv, gl, ok = false, running = false, raf = 0, last = 0, tt = 0, W = 1, H = 1, res = 1, slow = 0, hostEl, mkEl, markers = [];
+  let PR = {}, terr, solid, mk = {}, dynV, dynB, pts, ptsN = 0, sel = null, here = null, dest = null, orig = null, progFn = null, pc = [0, 0], pt = 9, VP = null;
+  const cam = {x: 0, z: 0, d: 3.4, yaw: 0, pit: 1.0}, v = {x: 0, z: 0, d: 3.4, yaw: .6, pit: 1.0};
+  let fl = null;
+  const VS = `#version 300 es
+in vec3 aP;in vec3 aN;in vec3 aC;in float aG;uniform mat4 uVP;uniform vec3 uOff;uniform float uRot;out vec3 vW;out vec3 vN;out vec3 vC;out float vG;
+void main(){float c=cos(uRot),s=sin(uRot);vec3 p=vec3(aP.x*c+aP.z*s,aP.y,-aP.x*s+aP.z*c);vN=vec3(aN.x*c+aN.z*s,aN.y,-aN.x*s+aN.z*c);vW=p+uOff;vC=aC;vG=aG;gl_Position=uVP*vec4(vW,1.);}`;
+  const FS = `#version 300 es
+precision highp float;in vec3 vW;in vec3 vN;in vec3 vC;in float vG;out vec4 o;uniform float uTime,uPT,uProg;uniform int uMode;uniform vec3 uEye,uTint,uOff;uniform vec2 uPC;
+float hs(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float nz(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hs(i),hs(i+vec2(1,0)),f.x),mix(hs(i+vec2(0,1)),hs(i+vec2(1,1)),f.x),f.y);}
+float gr(vec2 p,float s){vec2 q=p/s;vec2 g=abs(fract(q-.5)-.5)/fwidth(q);return 1.-min(min(g.x,g.y),1.);}
+void main(){vec3 c=vec3(0.);float a=1.;
+if(uMode==0){
+ if(vG<-.5){float ln=gr(vec2(vW.x+vW.z,vW.y),.06);c=vC*(.12+.5*ln)*smoothstep(-.13,0.,vW.y)+vec3(0.,.5,.5)*.4*smoothstep(-.02,0.,vW.y);}
+ else{float ln=gr(vW.xz,.05);float hh=vW.y/.025;float ct=1.-min(abs(fract(hh-.5)-.5)/fwidth(hh),1.);float wat=step(vW.y,0.);
+  c=vec3(.01,.035,.05)+vC*(.06+.9*max(vW.y,0.));c+=vC*(ln*.32+ct*.5*(1.-wat));c+=vec3(.1,.55,.8)*wat*(.1+.12*sin(vW.x*30.+vW.z*20.+uTime*2.));
+  c+=vC*max(dot(normalize(vN),normalize(vec3(.4,.8,.3))),0.)*.14;float s=fract(uTime*.07)*3.2-1.6;c+=vec3(.3,1.,1.)*exp(-pow((vW.z-s)*6.,2.))*(.12+ln*.5);
+  float d=length(vW.xz-uPC),rg=exp(-pow((d-uPT*1.5)*14.,2.))*exp(-uPT*1.1);c+=vC*rg*1.6+vec3(rg*.3);
+  float e=smoothstep(.05,0.,min(1.5-abs(vW.x),1.-abs(vW.z)));c+=vec3(0.,1.,.97)*e*.9;}
+}else if(uMode==1){vec3 N=normalize(vN),V=normalize(uEye-vW);float fr=pow(1.-abs(dot(N,V)),2.5);float l=abs(dot(N,normalize(vec3(.4,.8,.3))))*.6+.25;
+ c=vC*l*.55+vC*fr*1.1+vC*vG*(.9+.3*sin(uTime*3.+vW.x*20.));c*=.88+.12*sin(vW.y*160.-uTime*4.);
+}else if(uMode==2){float u=vG;float tr=step(u,uProg);float dash=step(.5,fract(u*46.-uTime*1.3));float hd=exp(-pow((u-uProg)*26.,2.));float al=mix(.5*dash,1.,tr)+hd*1.5;c=uTint*al;a=al;
+}else if(uMode==3){vec2 uv=vN.xy;float d=length(uv*2.-1.);float n=nz(uv*5.+vW.xz*3.+uTime*.05);a=smoothstep(1.,.15,d)*(.5+.7*n)*vG;c=vC;
+}else if(uMode==4){float ln=gr(vW.xz,.25);float r=length(vW.xz);c=vec3(.004,.012,.018)+vec3(0.,.55,.6)*ln*.22*smoothstep(4.,.8,r);
+}else{c=vC*uTint;a=vG*clamp(1.-(vW.y-uOff.y)/.6,0.,1.)*(.8+.2*sin(uTime*5.));}
+o=vec4(c,a);}`;
+  const PV = `#version 300 es
+in vec4 aA;in vec4 aB;uniform mat4 uVP;uniform float uTime,uPx;out vec3 vC;out float vA;
+void main(){float t=fract(aA.z+uTime*aA.w*.05);vec3 p=vec3(aA.x+sin(uTime*.4+aA.z*30.)*.04,.02+t*.75,aA.y+cos(uTime*.3+aA.z*20.)*.04);vA=sin(t*3.1416);vC=aB.rgb;gl_Position=uVP*vec4(p,1.);gl_PointSize=aB.a*uPx/gl_Position.w;}`;
+  const PF = `#version 300 es
+precision highp float;in vec3 vC;in float vA;out vec4 o;void main(){float d=length(gl_PointCoord-.5);o=vec4(vC*1.4,smoothstep(.5,0.,d)*vA);}`;
+  function prog(vs, fs, attrs) { const mk = (t, s) => { const sh = gl.createShader(t); gl.shaderSource(sh, s); gl.compileShader(sh); if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); return sh; };
+    const p = gl.createProgram(); gl.attachShader(p, mk(gl.VERTEX_SHADER, vs)); gl.attachShader(p, mk(gl.FRAGMENT_SHADER, fs)); attrs.forEach((a, i) => gl.bindAttribLocation(p, i, a)); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    const u = {}; for (let i = 0, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); i < n; i++) { const a = gl.getActiveUniform(p, i); u[a.name] = gl.getUniformLocation(p, a.name); } return {p, u}; }
+  function layout(buf) { gl.bindBuffer(gl.ARRAY_BUFFER, buf); [[0, 3, 0], [1, 3, 12], [2, 3, 24], [3, 1, 36]].forEach(([i, n, o]) => { gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, n, gl.FLOAT, false, 40, o); }); }
+  function upload(arr, idx) { const vao = gl.createVertexArray(), b = gl.createBuffer(); gl.bindVertexArray(vao); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arr), gl.STATIC_DRAW); layout(b);
+    let n = arr.length / 10; if (idx) { const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(idx), gl.STATIC_DRAW); n = idx.length; } gl.bindVertexArray(null); return {vao, n}; }
+  function buildTerrain() { const d = [], I = [], Hh = new Float32Array(GW * GH), X = ix => (ix / (GW - 1) - .5) * WW, Z = iy => (iy / (GH - 1) - .5) * WD;
+    for (let iy = 0; iy < GH; iy++) for (let ix = 0; ix < GW; ix++) Hh[iy * GW + ix] = hfun(X(ix), Z(iy));
+    for (let iy = 0; iy < GH; iy++) for (let ix = 0; ix < GW; ix++) { const i = iy * GW + ix, hl = Hh[iy * GW + Math.max(ix - 1, 0)], hr = Hh[iy * GW + Math.min(ix + 1, GW - 1)], hu = Hh[Math.max(iy - 1, 0) * GW + ix], hd = Hh[Math.min(iy + 1, GH - 1) * GW + ix];
+      const n = nrm([hl - hr, 2 * WW / GW, hu - hd]), c = tint(X(ix), Z(iy)); d.push(X(ix), Hh[i], Z(iy), n[0], n[1], n[2], c[0], c[1], c[2], Hh[i]); }
+    for (let iy = 0; iy < GH - 1; iy++) for (let ix = 0; ix < GW - 1; ix++) { const a = iy * GW + ix; I.push(a, a + 1, a + GW, a + 1, a + GW + 1, a + GW); }
+    const edge = (list, nx, nz) => { const base = d.length / 10; list.forEach(i => { const o = i * 10; d.push(d[o], -.12, d[o + 2], nx, 0, nz, d[o + 6], d[o + 7], d[o + 8], -1); }); for (let k = 0; k < list.length - 1; k++) { const a = list[k], b = list[k + 1], c = base + k; I.push(a, b, c, b, c + 1, c); } };
+    const row = iy => Array.from({length: GW}, (_, ix) => iy * GW + ix), col = ix => Array.from({length: GH}, (_, iy) => iy * GW + ix); edge(row(0), 0, -1); edge(row(GH - 1), 0, 1); edge(col(0), -1, 0); edge(col(GW - 1), 1, 0);
+    return upload(d, I); }
+  function buildSolid() { const m = [], f = [-4, -.125, -4, 0, 1, 0, 0, 0, 0, 0]; KEYS.forEach(k => { const r = RM[k], x = r.w[0], z = r.w[2], y = PADY(r.t), c = r.c;
+      frus(m, x, y - .032, z, .3, .27, .036, 28, dim(c, .3), .25); ring(m, x, y + .006, z, .285, .004, 48, c, .9); LM[r.t](m, x, y, z, c);
+      const list = bld[k] || ["building", "hospital", "bank", "house"]; list.slice(0, 6).forEach((t, i) => { const a = i / list.length * TAU + .55; (BL[t] || BL.building)(m, x + Math.cos(a) * .2, y, z + Math.sin(a) * .2); }); });
+    solid = upload(m); }
+  function buildMeshes() { const ar = (R, w, n, sk) => { const m = []; ring(m, 0, 0, 0, R, w, n, [1, 1, 1], 1, sk); return upload(m); };
+    let m = []; frus(m, 0, 0, 0, .006, .006, .6, 5, [1, 1, 1], 1); mk.beam = upload(m);
+    m = []; octa(m, 0, .05, 0, .02, 1.7, [0, 1, .97], 1); octa(m, 0, .05, 0, .034, .6, [.7, 1, 1], .7); ring(m, 0, .05, 0, .055, .003, 20, [0, 1, .97], 1); mk.pl = upload(m);
+    mk.ring = ar(.24, .008, 56); mk.ringD = ar(.3, .007, 56, 1); mk.here = ar(.2, .007, 40);
+    m = []; for (let i = 0; i < 4; i++) { const a = i * 1.571; box(m, Math.cos(a) * .24 - .012, 0, Math.sin(a) * .24 - .012, .024, .004, .024, [1, 1, 1], 1); } mk.tick = upload(m); }
+  function buildPts() { const N = 420, a = new Float32Array(N * 8); for (let i = 0; i < N; i++) { const x = (Math.random() - .5) * 2.9, z = (Math.random() - .5) * 1.9, c = tint(x, z);
+      a.set([x, z, Math.random(), .6 + Math.random() * 1.4, mix(c[0], 1, .3), mix(c[1], 1, .3), mix(c[2], 1, .3), 2.5 + Math.random() * 4.5], i * 8); }
+    const vao = gl.createVertexArray(), b = gl.createBuffer(); gl.bindVertexArray(vao); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, a, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 32, 0); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 32, 16); gl.bindVertexArray(null); pts = vao; ptsN = N; }
+  /* ───── ابر و مه ───── */
+  const CL = Array.from({length: 40}, (_, i) => ({x: Math.random() * 4 - 2, z: Math.random() * 2.2 - 1.1, s: i < 28 ? .4 + Math.random() * .4 : .9 + Math.random() * .5, y: i < 28 ? .22 + Math.random() * .2 : .05, sp: .01 + Math.random() * .02, a: i < 28 ? .1 : .07, k: Math.random()}));
+  const dynArr = new Float32Array(10 * 6 * 40), routeArr = new Float32Array(10 * 2 * 73);
+  const pv = (a, o, x, y, z, nx, ny, nz, r, g, b, q) => { a[o] = x; a[o + 1] = y; a[o + 2] = z; a[o + 3] = nx; a[o + 4] = ny; a[o + 5] = nz; a[o + 6] = r; a[o + 7] = g; a[o + 8] = b; a[o + 9] = q; return o + 10; };
+  function curve(a, b, t) { const dx = b[0] - a[0], dz = b[2] - a[2]; return [a[0] + dx * t, .09 + Math.sin(Math.PI * t) * (.18 + Math.hypot(dx, dz) * .1), a[2] + dz * t]; }
+  /* ───── فریم ───── */
+  const U = (n, ...x) => { const p = PR.cur, l = p.u[n]; if (!l) return; x.length === 1 ? (typeof x[0] === "object" ? gl.uniform3fv(l, x[0]) : gl.uniform1f(l, x[0])) : x.length === 2 ? gl.uniform2f(l, x[0], x[1]) : gl.uniform3f(l, x[0], x[1], x[2]); };
+  const use = p => { PR.cur = p; gl.useProgram(p.p); };
+  const draw = (m, mode, off, rot, tn, ty) => { gl.uniform1i(PR.g.u.uMode, mode); gl.uniform3f(PR.g.u.uOff, off[0], off[1], off[2]); gl.uniform1f(PR.g.u.uRot, rot || 0); if (tn) gl.uniform3f(PR.g.u.uTint, tn[0], tn[1], tn[2]); gl.bindVertexArray(m.vao); gl.drawArrays(ty || gl.TRIANGLES, 0, m.n); };
+  function frame(ts) { raf = requestAnimationFrame(frame); const dt = Math.min(.05, (ts - last) / 1000 || .016); last = ts; tt += dt; pt = Math.min(pt + dt, 6);
+    if (dt > .034) { if (++slow > 40 && res > .6) { res *= .85; slow = 0; resize(); } } else slow = Math.max(0, slow - 1);
+    if (fl) { fl.t = Math.min(1, fl.t + dt / fl.dur); const t = fl.t, e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2, b = Math.sin(Math.PI * e);
+      v.x = mix(fl.x0, cam.x, e); v.z = mix(fl.z0, cam.z, e); v.d = mix(fl.d0, cam.d, e) + b * fl.bump; v.yaw = mix(fl.y0, cam.yaw, e) + b * .35; v.pit = mix(fl.p0, cam.pit, e) + b * .2; if (t >= 1) fl = null; }
+    else { const k = 1 - Math.exp(-dt * 7); v.x += (cam.x - v.x) * k; v.z += (cam.z - v.z) * k; v.d += (cam.d - v.d) * k; v.yaw += (cam.yaw - v.yaw) * k; v.pit += (cam.pit - v.pit) * k; }
+    const cp = Math.cos(v.pit), eye = [v.x + v.d * Math.sin(v.yaw) * cp, .05 + v.d * Math.sin(v.pit), v.z + v.d * Math.cos(v.yaw) * cp], vm = look(eye, [v.x, .05, v.z]); VP = mul(persp(.85, W / H, .05, 30), vm);
+    gl.viewport(0, 0, cv.width, cv.height); gl.clearColor(.005, .015, .022, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.depthMask(true);
+    use(PR.g); gl.uniformMatrix4fv(PR.g.u.uVP, false, VP); gl.uniform3f(PR.g.u.uEye, eye[0], eye[1], eye[2]); gl.uniform1f(PR.g.u.uTime, tt); gl.uniform1f(PR.g.u.uPT, pt); gl.uniform2f(PR.g.u.uPC, pc[0], pc[1]);
+    draw({vao: mk.floor, n: 6}, 4, [0, 0, 0]); gl.bindVertexArray(terr.vao); gl.uniform1i(PR.g.u.uMode, 0); gl.drawElements(gl.TRIANGLES, terr.n, gl.UNSIGNED_INT, 0);
+    draw(solid, 1, [0, 0, 0]);
+    /* مارکر بازیکن */
+    const A = orig && RM[orig] && RM[orig].w, B = dest && RM[dest] && RM[dest].w, prg = progFn ? clamp(progFn(), 0, 1) : 0; let mp = null;
+    if (A && B) mp = curve(A, B, prg); else if (here && RM[here]) { const w = RM[here].w; mp = [w[0], .1, w[2] + .21]; }
+    if (mp) { const bob = Math.sin(tt * 2.2) * .012; draw(mk.pl, 1, [mp[0], mp[1] + bob, mp[2]], tt * 1.6); }
     gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.depthMask(false);
-    p = P.bm; gl.useProgram(p.p); gl.bindBuffer(gl.ARRAY_BUFFER, buf.bm); const lb = [attr(p, "aP", 3, 5, 0), attr(p, "aU", 2, 5, 3)]; gl.uniformMatrix4fv(p.u.uVP, false, VP); gl.uniform1f(p.u.uT, T);
-    KEYS.forEach((k, i) => { const r = RM[k], w = r.w, hot = k === here || k === sel || k === dest, hgt = hot ? 1.5 : .78, wid = hot ? .05 : .03, al = hot ? .85 : .5; gl.uniform3fv(p.u.uCol, k === here ? [0, 1, .97] : r.c); gl.uniform1f(p.u.uAl, al); gl.uniform1f(p.u.uSd, i); gl.uniform2f(p.u.uS, wid, hgt);
-      gl.uniform3f(p.u.uO, w[0], w[1], w[2]); gl.uniform3f(p.u.uRt, 1, 0, 0); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.uniform3f(p.u.uRt, 0, 0, 1); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); });
-    lb.forEach(l => l >= 0 && gl.disableVertexAttribArray(l));
-    p = P.pt; gl.useProgram(p.p); gl.bindBuffer(gl.ARRAY_BUFFER, buf.pt); const lp = [attr(p, "aP", 3, 7, 0), attr(p, "aC", 4, 7, 3)]; gl.uniformMatrix4fv(p.u.uVP, false, VP); gl.uniform1f(p.u.uT, T); gl.uniform1f(p.u.uSc, H * .02 / (window.devicePixelRatio > 1 ? 1 : 1)); gl.drawArrays(gl.POINTS, 0, buf.pn); lp.forEach(l => l >= 0 && gl.disableVertexAttribArray(l));
-    if (routeA && routeB && RM[routeA] && RM[routeB]) { p = P.rt; gl.useProgram(p.p); gl.bindBuffer(gl.ARRAY_BUFFER, buf.rt); const lr = attr(p, "aT", 1, 1, 0); gl.uniformMatrix4fv(p.u.uVP, false, VP); gl.uniform1f(p.u.uT, T); gl.uniform1f(p.u.uSc, H * .03);
-      const a = RM[routeA].w, b = RM[routeB].w; gl.uniform3f(p.u.uA, a[0], a[1] + .05, a[2]); gl.uniform3f(p.u.uB, b[0], b[1] + .05, b[2]); gl.drawArrays(gl.POINTS, 0, buf.rn); if (lr >= 0) gl.disableVertexAttribArray(lr); }
-    gl.depthMask(true); gl.disable(gl.BLEND);
-  }
-  function placeMarkers() {
-    const bw = hostEl.clientWidth, bh = hostEl.clientHeight;
-    for (const m of markers) { const w = RM[m.k].w, top = proj([w[0], w[1] + .5, w[2]]), el = m.el;
-      if (!top || top[0] < -.1 || top[0] > 1.1 || top[1] < -.1 || top[1] > 1.1) { el.style.display = "none"; continue; }
-      el.style.display = ""; el.style.transform = `translate(${(top[0] * bw).toFixed(1)}px,${(top[1] * bh).toFixed(1)}px) scale(${clamp(2.6 / top[2], .62, 1.15).toFixed(2)})`; el.style.zIndex = String(1000 - Math.round(top[2] * 100)); }
-  }
-  function start() { if (!ok || running) return; running = true; last = performance.now(); resize(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame); }
+    const rc = k => RM[k].c, at = k => RM[k].w;
+    if (sel && RM[sel]) { const w = at(sel); draw(mk.ring, 5, [w[0], .04, w[2]], tt * .5, rc(sel)); draw(mk.tick, 5, [w[0], .04, w[2]], -tt * .8, rc(sel)); draw(mk.beam, 5, [w[0], .03, w[2]], 0, rc(sel)); }
+    if (here && RM[here]) { const w = at(here); draw(mk.here, 5, [w[0], .04, w[2]], tt, [0, 1, .97]); }
+    if (dest && RM[dest]) { const w = at(dest); draw(mk.ringD, 5, [w[0], .04, w[2]], -tt * .7, [0, 1, .97]); draw(mk.beam, 5, [w[0], .03, w[2]], 0, [0, 1, .97]); }
+    if (mp) draw(mk.beam, 5, [mp[0], .03, mp[2]], 0, [0, 1, .97]);
+    if (A && B) { const N = 72, dx = B[0] - A[0], dz = B[2] - A[2], l = Math.hypot(dx, dz) || 1, px = -dz / l * .011, pz = dx / l * .011; let o = 0;
+      for (let i = 0; i <= N; i++) { const t = i / N, p = curve(A, B, t); o = pv(routeArr, o, p[0] - px, p[1], p[2] - pz, 0, 1, 0, 0, 1, .97, t); o = pv(routeArr, o, p[0] + px, p[1], p[2] + pz, 0, 1, 0, 0, 1, .97, t); }
+      gl.bindVertexArray(dynV); gl.bindBuffer(gl.ARRAY_BUFFER, dynB); gl.bufferData(gl.ARRAY_BUFFER, routeArr, gl.DYNAMIC_DRAW); gl.uniform1f(PR.g.u.uProg, prg); gl.uniform1i(PR.g.u.uMode, 2); gl.uniform3f(PR.g.u.uOff, 0, 0, 0); gl.uniform1f(PR.g.u.uRot, 0); gl.uniform3f(PR.g.u.uTint, .1, 1, .97); gl.drawArrays(gl.TRIANGLE_STRIP, 0, (N + 1) * 2); }
+    /* ابر و مه متحرک (بیلبورد) */
+    const rx = Math.cos(v.yaw), rz = -Math.sin(v.yaw); let o = 0;
+    for (const c of CL) { const x = ((c.x + tt * c.sp + 2) % 4 + 4) % 4 - 2, t = tint(x, c.z), h = c.s, hh = c.y > .1 ? c.s * .35 : c.s * .12, y = c.y + Math.sin(tt * .2 + c.k * 9) * .02, al = c.a * sst(2, 1.4, Math.abs(x)); const rr = t[0] * .5 + .35, gg = t[1] * .5 + .4, bb = t[2] * .5 + .45, q = [x - rx * h / 2, y - hh / 2, c.z - rz * h / 2, x + rx * h / 2, y - hh / 2, c.z + rz * h / 2, x + rx * h / 2, y + hh / 2, c.z + rz * h / 2, x - rx * h / 2, y + hh / 2, c.z - rz * h / 2];
+      [[0, 0, 0], [1, 0, 1], [2, 1, 1], [0, 0, 0], [2, 1, 1], [3, 0, 1]].forEach(([i, u, w]) => { o = pv(dynArr, o, q[i * 3], q[i * 3 + 1], q[i * 3 + 2], i === 1 || i === 2 ? 1 : 0, i > 1 ? 1 : 0, 0, rr, gg, bb, al); }); }
+    gl.bindVertexArray(dynV); gl.bufferData(gl.ARRAY_BUFFER, dynArr, gl.DYNAMIC_DRAW); gl.uniform1i(PR.g.u.uMode, 3); gl.drawArrays(gl.TRIANGLES, 0, CL.length * 6);
+    use(PR.p); gl.uniformMatrix4fv(PR.p.u.uVP, false, VP); gl.uniform1f(PR.p.u.uTime, tt); gl.uniform1f(PR.p.u.uPx, cv.width / W * 3); gl.bindVertexArray(pts); gl.drawArrays(gl.POINTS, 0, ptsN); gl.bindVertexArray(null);
+    /* برچسب‌های قلمرو روی صحنه */
+    const cw = hostEl.clientWidth, ch = hostEl.clientHeight; markers.forEach(m => { const r = RM[m.k], P = VP, x = r.w[0], y = .3, z = r.w[2], w = P[3] * x + P[7] * y + P[11] * z + P[15];
+      if (w <= .01) { m.el.style.opacity = 0; return; } const nx = (P[0] * x + P[4] * y + P[8] * z + P[12]) / w, ny = (P[1] * x + P[5] * y + P[9] * z + P[13]) / w;
+      m.el.style.opacity = 1; m.el.style.transform = `translate(${((nx * .5 + .5) * cw).toFixed(1)}px,${((1 - (ny * .5 + .5)) * ch).toFixed(1)}px)`; m.el.style.zIndex = Math.round(2000 - w * 100); m.el.classList.toggle("lb", v.d < 2.1); }); }
+  function resize() { if (!cv) return; W = Math.max(1, hostEl.clientWidth); H = Math.max(1, hostEl.clientHeight); const r = Math.min(window.devicePixelRatio || 1, 2) * res; cv.width = Math.round(W * r); cv.height = Math.round(H * r); }
+  function init(host, mkHost) { hostEl = host; mkEl = mkHost; cv = host.querySelector("canvas"); gl = cv.getContext("webgl2", {antialias: true, alpha: false, powerPreference: "high-performance"}); if (!gl) throw new Error("WebGL2 unavailable");
+    PR.g = prog(VS, FS, ["aP", "aN", "aC", "aG"]); PR.p = prog(PV, PF, ["aA", "aB"]); terr = buildTerrain(); buildSolid(); buildMeshes(); buildPts();
+    mk.floor = (() => { const m = [], s = 4, y = -.125; quad(m, [-s, y, -s], [s, y, -s], [s, y, s], [-s, y, s], [0, 0, 0], 0); return upload(m).vao; })();
+    dynV = gl.createVertexArray(); dynB = gl.createBuffer(); gl.bindVertexArray(dynV); layout(dynB); gl.bindVertexArray(null); ok = true; resize(); return Promise.resolve(); }
+  function start() { if (running || !ok) return; running = true; last = performance.now(); raf = requestAnimationFrame(frame); }
   function stop() { running = false; cancelAnimationFrame(raf); }
-
-  /* ───── کنترل دوربین ───── */
-  const WORLD = () => ({x: WW / 2 - .15, z: WD / 2 - .1});
-  function setTarget(x, z) { const b = WORLD(); cam.x = clamp(x, -b.x, b.x); cam.z = clamp(z, -b.z, b.z); }
-  function pan(dx, dz) { setTarget(cam.x + dx, cam.z + dz); cam.cx = cam.x; cam.cz = cam.z; }
-  const api = {
-    init, start, stop, resize, get ok() { return ok; }, get running() { return running; }, keys: KEYS, RM,
-    mount(list) { // list: [{k, el}]
-      markers = list.filter(m => RM[m.k]);
-    },
-    setState(s, h, d, o) { sel = s; here = h; dest = d; routeA = d ? (o || h) : null; routeB = d || null; },
-    flyTo(k, dist) { const r = RM[k]; if (!r || !r.w) return; setTarget(r.w[0], r.w[2]); if (dist) cam.d = clamp(dist, .55, 4); },
-    intro(k) { cam.cx = 0; cam.cz = 0; cam.cd = 4.2; cam.cyaw = .7; cam.cpit = .5; cam.y = 0; if (k && RM[k] && RM[k].w) { setTarget(RM[k].w[0], RM[k].w[2]); } cam.d = 2.5; cam.yaw = 0; cam.pit = .74; },
-    zoom(f) { cam.d = clamp(cam.d * f, .55, 4.2); },
-    tilt(a) { cam.pit = clamp(cam.pit + a, .38, 1.3); },
-    rotate(a) { cam.yaw += a; },
-    north() { cam.yaw = 0; },
-    drag(px, py, rot) {
-      if (rot) { cam.yaw -= px * .008; cam.pit = clamp(cam.pit + py * .006, .38, 1.3); return; }
-      const sc = cam.d * .0021, c = Math.cos(cam.yaw), sn = Math.sin(cam.yaw), dx = -px * sc, dz = py * sc / Math.max(.5, Math.sin(cam.pit));
-      setTarget(cam.x + c * dx - sn * dz, cam.z - sn * dx - c * dz);
-    },
-    get cam() { return cam; }
+  const lim = () => ({x: WW / 2 - .15, z: WD / 2 - .1});
+  const setT = (x, z) => { const b = lim(); cam.x = clamp(x, -b.x, b.x); cam.z = clamp(z, -b.z, b.z); };
+  function fly(x, z, d, dur, pit) { const b = lim(); cam.x = clamp(x, -b.x, b.x); cam.z = clamp(z, -b.z, b.z); cam.d = clamp(d, .55, 4.2); if (pit) cam.pit = pit;
+    const dist = Math.hypot(cam.x - v.x, cam.z - v.z); fl = {t: 0, dur: dur || clamp(1.1 + dist * .9, 1.2, 2.4), x0: v.x, z0: v.z, d0: v.d, y0: v.yaw, p0: v.pit, bump: Math.min(2, dist * .95 + .15)}; }
+  return {
+    init, start, stop, resize, get ok() { return ok; }, get running() { return running; }, keys: KEYS, RM, get cam() { return cam; },
+    mount(list) { markers = list.filter(m => RM[m.k]); },
+    setBuildings(map) { bld = map || {}; if (ok) buildSolid(); },
+    setState(s, h, d, o, pf) { if (s !== sel && s && RM[s]) { pc = [RM[s].w[0], RM[s].w[2]]; pt = 0; } sel = s; here = h; dest = d; orig = d ? (o || h) : null; progFn = pf || null; },
+    flyTo(k, dist) { const r = RM[k]; if (!r) return; fly(r.w[0], r.w[2] + .12, dist || 1.5, 0, .62); },
+    intro(k) { v.x = 0; v.z = 0; v.d = 5.2; v.yaw = 1.4; v.pit = 1.25; cam.yaw = 0; const r = RM[k] || RM[KEYS[0]]; fly(r.w[0], r.w[2] + .12, 1.7, 3.2, .62); },
+    zoom(f) { fl = null; cam.d = clamp(cam.d * f, .55, 4.2); }, tilt(a) { fl = null; cam.pit = clamp(cam.pit + a, .38, 1.35); }, rotate(a) { fl = null; cam.yaw += a; }, north() { fl = null; cam.yaw = 0; },
+    drag(px, py, rot) { fl = null; if (rot) { cam.yaw -= px * .008; cam.pit = clamp(cam.pit + py * .006, .38, 1.35); return; }
+      const sc = v.d * .0021, c = Math.cos(v.yaw), sn = Math.sin(v.yaw), dx = -px * sc, dz = py * sc / Math.max(.5, Math.sin(v.pit)); setT(cam.x + c * dx - sn * dz, cam.z - sn * dx - c * dz); v.x = cam.x; v.z = cam.z; }
   };
-  return api;
 })();
 
 const CLS = {
@@ -1116,6 +977,7 @@ async function build3D() {
     await GL3.init($("#gl3d"), $("#glmks"));
     $("#glmks").innerHTML = R.filter(d => GL3.RM[d.key]).map(d => `<button class="gk" data-act="msel" data-k="${esc(d.key)}" aria-label="${esc(faName(d))}" style="--zc:${ZCOL[d.zone] || "#7F9DB5"}"><i></i><b>${esc(faName(d))}</b></button>`).join("");
     GL3.mount($$(".gk").map(el => ({k: el.dataset.k, el})));
+    GL3.setBuildings(Object.fromEntries(R.map(d => [d.key, (d.places || []).map(p => /بیمارستان|درمانگاه|داروخانه|شفا/.test(p.name) ? "hospital" : /بانک|خزانه|گاوصندوق/.test(p.name) ? "bank" : /خانه|روستا|کلبه|اردوگاه|چادر|واحه/.test(p.name) ? "house" : "building")])));
     use3D = true; $("#mapBox").hidden = true; markMap();
     new ResizeObserver(() => GL3.resize()).observe($("#gl3d"));
     if (view === "map") enter3D();
@@ -1171,7 +1033,7 @@ function buildMap() {
 }
 function markMap() {
   $$(".mk,.gk").forEach(m => { const k = m.dataset.k; m.classList.toggle("on", k === sel); m.classList.toggle("here", !!S && k === S.map && !S.traveling); m.classList.toggle("dest", !!S && k === S.traveling); });
-  if (use3D && S) GL3.setState(sel, S.traveling ? null : S.map, S.traveling || null, S.map);
+  if (use3D && S) GL3.setState(sel, S.traveling ? null : S.map, S.traveling || null, S.map, () => S.traveling && S.travel_total ? 1 - (S.travel_left - (Date.now() - S._at) / 1000) / S.travel_total : 0);
   const a = S && HS[S.map], b = S && S.traveling && HS[S.traveling];
   $("#mapLn").innerHTML = a && b ? `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#00FFF7" stroke-width="3" stroke-dasharray="10 8" vector-effect="non-scaling-stroke"/>` : "";
 }
