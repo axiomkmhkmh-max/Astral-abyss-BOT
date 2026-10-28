@@ -132,10 +132,62 @@ def _state(uid, player):
         "inventory": [
             {"name": i.get("name"), "emoji": i.get("emoji", ""), "rarity": i.get("rarity", "common"),
              "sell": i.get("sell", 0), "qty": i.get("qty", 1), "desc": i.get("desc", ""),
-             "locked": bool(i.get("shop_exclusive"))}
+             "slot": i.get("slot"), "locked": bool(i.get("shop_exclusive"))}
             for i in player.get("inventory", [])
         ],
+        # Only expose saved stats/equipment; never synthesize STR/DEX values.
+        "stats": _public_stats(player),
+        "equipment": _public_equipment(player),
+        "equipment_bonuses": _public_equipment_bonuses(player),
+        "rage": int(player.get("rage", 0) or 0),
+        "current_fight": _public_fight(player.get("current_fight")),
     }
+
+
+def _public_stats(player):
+    raw = player.get("stats") if isinstance(player.get("stats"), dict) else {}
+    allowed = ("str", "dex", "int", "vit", "agi", "strength", "dexterity", "intelligence", "vitality", "agility", "atk", "def", "magic", "speed")
+    out = {}
+    for key in allowed:
+        value = raw.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            out[key] = value
+    return out
+
+
+def _public_equipment(player):
+    eq = player.get("equipped") if isinstance(player.get("equipped"), dict) else {}
+    out = []
+    for slot in ("weapon", "helmet", "armor", "gloves", "boots", "ring", "amulet", "relic"):
+        item = eq.get(slot)
+        if not isinstance(item, dict):
+            continue
+        out.append({"slot": slot, "name": str(item.get("name") or slot),
+                    "emoji": str(item.get("emoji") or "◇"),
+                    "rarity": str(item.get("rarity") or "common"),
+                    "level": item.get("level") if isinstance(item.get("level"), (int, float)) else None})
+    return out
+
+
+def _public_equipment_bonuses(player):
+    try:
+        from item_system import equipment_stats
+        raw = equipment_stats(player)
+        return {str(k): v for k, v in raw.items() if isinstance(v, (int, float))}
+    except Exception:
+        return {}
+
+
+def _public_fight(enemy):
+    if not isinstance(enemy, dict):
+        return None
+    return {"name": str(enemy.get("name") or "Enemy"),
+            "hp": int(enemy.get("hp", 1) or 0),
+            "max_hp": int(enemy.get("max_hp", enemy.get("hp", 1)) or 1),
+            "dmg": int(enemy.get("dmg", 0) or 0),
+            "tier": str(enemy.get("tier") or "common"),
+            "weak": str(enemy.get("weak") or ""),
+            "is_boss": bool(enemy.get("is_boss"))}
 
 
 def _items_out(items):
@@ -964,12 +1016,213 @@ async def g_rally(request):
     return await _gop(request, op)
 
 
+# ───────────────────────── تجهیزات: اکیپ / خارج‌کردن ─────────────────────────
+async def equipment_equip(request):
+    uid, err = _uid(request)
+    if err: return err
+    body = await _body(request)
+    name, slot = str(body.get("name") or ""), str(body.get("slot") or "")
+    try:
+        from item_system import EQUIP_SLOTS, migrate_legacy_item
+    except Exception:
+        return _err("سیستم تجهیزات در دسترس نیست.", 500)
+    if not name or slot not in EQUIP_SLOTS:
+        return _err("آیتم یا اسلات تجهیزات نامعتبر است.")
+    async with player_lock(uid):
+        player = await _load(uid)
+        if not player: return _err("اول تو ربات /start بزن", 404)
+        inv = player.setdefault("inventory", [])
+        idx = next((i for i, item in enumerate(inv) if item.get("name") == name and item.get("slot") == slot and not item.get("shop_exclusive")), None)
+        if idx is None:
+            return _err("این آیتم با این اسلات در کوله‌پشتی نیست.", 404)
+        item = migrate_legacy_item(inv.pop(idx))
+        eq = player.setdefault("equipped", {s: None for s in EQUIP_SLOTS})
+        old = eq.get(slot)
+        eq[slot] = item
+        if old: inv.append(old)
+        player["inventory"] = inv
+        player["equipped"] = eq
+        await asave_player(uid, player)
+        return web.json_response({**_state(uid, player), "ok": True, "msg": f"{item.get('name', name)} اکیپ شد."})
+
+
+async def equipment_unequip(request):
+    uid, err = _uid(request)
+    if err: return err
+    slot = str((await _body(request)).get("slot") or "")
+    try:
+        from item_system import EQUIP_SLOTS
+    except Exception:
+        return _err("سیستم تجهیزات در دسترس نیست.", 500)
+    if slot not in EQUIP_SLOTS: return _err("اسلات نامعتبر است.")
+    async with player_lock(uid):
+        player = await _load(uid)
+        if not player: return _err("اول تو ربات /start بزن", 404)
+        eq = player.setdefault("equipped", {s: None for s in EQUIP_SLOTS})
+        item = eq.get(slot)
+        if not item: return _err("این اسلات خالی است.", 409)
+        eq[slot] = None
+        player.setdefault("inventory", []).append(item)
+        player["equipped"] = eq
+        await asave_player(uid, player)
+        return web.json_response({**_state(uid, player), "ok": True, "msg": f"{item.get('name', 'آیتم')} به کوله برگشت."})
+
+
+# ───────────────────────── نبرد مینی‌اپ (استفاده از موتور واقعی بازی) ─────────────────────────
+def _combat_payload(player, result=None, reward=None, message=None):
+    enemy = player.get("current_fight")
+    return {"ok": True, "battle": _public_fight(enemy), "player": {
+        "hp": int(player.get("hp", 0) or 0), "max_hp": int(player.get("max_hp", 100) or 100),
+        "rage": int(player.get("rage", 0) or 0), "level": int(player.get("level", 1) or 1),
+        "xp": int(player.get("xp", 0) or 0), "zen": int(player.get("zen", 0) or 0)},
+        "result": result or {}, "reward": reward or {}, "message": message or ""}
+
+
+async def combat_state(request):
+    uid, player, err = await _auth(request)
+    if err: return err
+    return web.json_response(_combat_payload(player))
+
+
+async def combat_start(request):
+    uid, player, err = await _auth(request)
+    if err: return err
+    async with player_lock(uid):
+        player = await _load(uid)
+        if not player: return _err("اول تو ربات /start بزن", 404)
+        if player.get("current_fight"):
+            return web.json_response(_combat_payload(player, message="نبرد فعلی ادامه دارد."))
+        if player.get("hp", 0) <= 0:
+            return _err("HP کافی برای شروع نبرد نداری؛ ابتدا در بازی درمان شو.", 409)
+        if player.get("map") not in MAPS_DATA:
+            return _err("ابتدا یک قلمرو انتخاب کن.", 409)
+        try:
+            from combat import get_map_enemies
+            pool = get_map_enemies(player.get("map"), count=1)
+            if not pool: return _err("در این قلمرو دشمنی پیدا نشد.", 404)
+            enemy = pool[0]
+            enemy["max_hp"] = int(enemy.get("hp", 1))
+            enemy["is_boss"] = bool(enemy.get("is_boss", False))
+            player["current_fight"] = enemy
+            await asave_player(uid, player)
+            return web.json_response(_combat_payload(player, message="نبرد آغاز شد."))
+        except Exception as e:
+            return _err("شروع نبرد ممکن نشد: " + type(e).__name__, 500)
+
+
+async def combat_attack(request):
+    uid, player, err = await _auth(request)
+    if err: return err
+    body = await _body(request)
+    attack_type = str(body.get("attack_type") or "quick")
+    async with player_lock(uid):
+        player = await _load(uid)
+        if not player: return _err("اول تو ربات /start بزن", 404)
+        enemy = player.get("current_fight")
+        if not isinstance(enemy, dict): return _err("نبرد فعالی وجود ندارد.", 409)
+        try:
+            from combat import ATTACK_TYPES, calc_combat, get_drop
+            from combat_v3 import calc_combat_v3
+            from game_data import xp_for_level, effective_max_level, is_level_wall
+            if attack_type not in ATTACK_TYPES:
+                return _err("نوع حمله نامعتبر است.")
+            atk = ATTACK_TYPES[attack_type]
+            if attack_type == "combo" and int(player.get("combo", 0) or 0) < 3:
+                return _err("برای کومبو، ابتدا زنجیره‌ی حمله را تا 3 بساز.", 409)
+            if attack_type == "ultimate" and int(player.get("rage", 0) or 0) < 100:
+                return _err("گیج ضربه‌ی نهایی هنوز پر نشده.", 409)
+            now = time.time()
+            cdmap = player.setdefault("_miniapp_attack_at", {})
+            remaining = int(atk.get("cooldown", 0) - (now - float(cdmap.get(attack_type, 0) or 0)))
+            if remaining > 0:
+                return web.json_response({"error": "cooldown", "remaining": remaining}, status=429)
+
+            # Use the same combat calculator as the Telegram combat system.
+            result = calc_combat_v3(player, enemy, attack_type)
+            damage = max(0, int(result.get("dmg", 0) or 0)) if not result.get("miss") else 0
+            enemy["hp"] = max(0, int(enemy.get("hp", 1) or 1) - damage)
+            if result.get("reflect_dmg"):
+                enemy["hp"] = max(0, enemy["hp"] - int(result["reflect_dmg"]))
+            if result.get("counter") and result.get("enemy_dmg"):
+                player["hp"] = max(0, int(player.get("hp", 100) or 0) - int(result["enemy_dmg"]))
+            if result.get("lifesteal_heal"):
+                player["hp"] = min(int(player.get("max_hp", 100) or 100), int(player.get("hp", 0) or 0) + int(result["lifesteal_heal"]))
+            player["combo"] = int(player.get("combo", 0) or 0) + 1 if not result.get("miss") else 0
+            cdmap[attack_type] = now
+            reward = {}
+            killed = enemy["hp"] <= 0
+            defeated = int(player.get("hp", 0) or 0) <= 0
+            if killed:
+                base_xp = max(0, int(enemy.get("xp", 0) or 0))
+                base_zen = max(0, int(enemy.get("zen", 0) or 0))
+                player["xp"] = int(player.get("xp", 0) or 0) + base_xp
+                player["zen"] = int(player.get("zen", 0) or 0) + base_zen
+                player["kills"] = int(player.get("kills", 0) or 0) + 1
+                drop = get_drop(enemy, player)
+                if drop:
+                    player.setdefault("inventory", []).append(drop)
+                old_level = int(player.get("level", 1) or 1)
+                while player["level"] < effective_max_level(player) and player["xp"] >= xp_for_level(player["level"]):
+                    if is_level_wall(player["level"]) and player["level"] not in player.get("walls_cleared", []):
+                        break
+                    player["level"] += 1
+                    player["max_hp"] = int(player.get("max_hp", 100) or 100) + 5
+                    player["hp"] = player["max_hp"]
+                reward = {"xp": base_xp, "zen": base_zen, "drop": ({"name": drop.get("name"), "emoji": drop.get("emoji", ""), "rarity": drop.get("rarity", "common")} if drop else None), "levels_gained": int(player["level"]) - old_level}
+                player["current_fight"] = None
+                message = "دشمن شکست خورد!"
+            elif defeated:
+                # Do not invent a revival rule here; leave HP at zero for the game's existing recovery flow.
+                player["current_fight"] = None
+                message = "شکست خوردی؛ نبرد پایان یافت. از سیستم درمان/بازیابی فعلی ربات استفاده کن."
+            else:
+                player["current_fight"] = enemy
+                message = "ضربه ثبت شد."
+            await asave_player(uid, player)
+            public_result = {"damage": damage, "miss": bool(result.get("miss")), "crit": bool(result.get("crit")),
+                             "counter": bool(result.get("counter")), "enemy_damage": int(result.get("enemy_dmg", 0) or 0),
+                             "logs": [str(x).replace("**", "") for x in (result.get("logs") or [])][-5:],
+                             "cooldown": int(atk.get("cooldown", 0))}
+            return web.json_response(_combat_payload(player, public_result, reward, message))
+        except Exception as e:
+            return _err("اجرای حمله ناموفق بود: " + type(e).__name__, 500)
+
+
+async def combat_flee(request):
+    uid, player, err = await _auth(request)
+    if err: return err
+    async with player_lock(uid):
+        player = await _load(uid)
+        if not player: return _err("اول تو ربات /start بزن", 404)
+        player["current_fight"] = None
+        player["combo"] = 0
+        await asave_player(uid, player)
+        return web.json_response(_combat_payload(player, message="از نبرد خارج شدی."))
+
+
 # ───────────────────────── صفحه‌ی اصلی ─────────────────────────
 async def index(request):
     f = _find_index()
     if not f:
         return web.Response(text="index.html پیدا نشد؛ فایل رو کنار miniapp_api.py آپلود کن", status=404)
     return web.FileResponse(f, headers={"Cache-Control": "no-store"})
+
+
+# فایل‌های تصویری مینی‌اپ (پرسوناژها و ...). فقط خواندنی و فقط داخل miniapp_assets/
+ASSET_DIR = (HERE / "miniapp_assets").resolve()
+_ASSET_TYPES = {".webp", ".png", ".jpg", ".jpeg"}
+
+
+async def asset(request):
+    rel = request.match_info.get("path", "")
+    try:
+        f = (ASSET_DIR / rel).resolve()
+        f.relative_to(ASSET_DIR)  # جلوگیری از ../ و خروج از پوشه
+    except (ValueError, OSError):
+        return web.Response(status=404)
+    if f.suffix.lower() not in _ASSET_TYPES or not f.is_file():
+        return web.Response(status=404)
+    return web.FileResponse(f, headers={"Cache-Control": "public, max-age=3600"})
 
 
 async def ping(request):
@@ -979,7 +1232,11 @@ async def ping(request):
 def register_miniapp(app: web.Application):
     r = app.router
     r.add_get("/app", index); r.add_get("/app/", index); r.add_get("/app/ping", ping)
+    r.add_get("/app/assets/{path:.+}", asset)
     r.add_get("/api/realms", realms); r.add_get("/api/me", me)
+    r.add_post("/api/equipment/equip", equipment_equip); r.add_post("/api/equipment/unequip", equipment_unequip)
+    r.add_get("/api/combat", combat_state); r.add_post("/api/combat/start", combat_start)
+    r.add_post("/api/combat/attack", combat_attack); r.add_post("/api/combat/flee", combat_flee)
     r.add_post("/api/travel", travel); r.add_post("/api/loot", loot); r.add_post("/api/sell", sell)
     # اکتشاف و داستان
     r.add_get("/api/map", map_info); r.add_post("/api/explore", explore)
