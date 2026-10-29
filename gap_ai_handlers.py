@@ -54,9 +54,27 @@ async def cmd_aireload(msg: Message):
         await msg.answer(f"✅ {ai_core.reload_knowledge()} بخشِ دانش لود شد.")
 
 
+async def cmd_aikeys(msg: Message):
+    if is_gap_admin(msg):
+        try:
+            await msg.answer(await ai_core.keys_report())
+        except Exception as e:
+            await msg.answer(f"خطا: {type(e).__name__}: {str(e)[:200]}")
+
+
+async def cmd_aimodels(msg: Message):
+    if is_gap_admin(msg):
+        try:
+            await msg.answer(await ai_core.free_models())
+        except Exception as e:
+            await msg.answer(f"خطا: {type(e).__name__}: {str(e)[:200]}")
+
+
 def register_gap_ai_handlers(dp: GapDispatcher):
     dp.register_message(cmd_ask, commands=["ask", "ai"])
     dp.register_message(cmd_aistatus, commands=["aistatus"])
     dp.register_message(cmd_aireload, commands=["aireload"])
+    dp.register_message(cmd_aikeys, commands=["aikeys"])
+    dp.register_message(cmd_aimodels, commands=["aimodels"])
     for w in ("سوال", "بپرس"):
         dp.register_message(on_prefix, text_startswith=w)

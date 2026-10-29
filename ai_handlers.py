@@ -7,7 +7,8 @@
 #    • «سوال: ...»  یا  «بپرس ...»  (کلمه اولِ پیام)
 #    • منشنِ ربات:  @ASTRALABYSS_BOT سوالت
 #    • ریپلای روی یکی از جواب‌های خودِ AI  (ادامه‌ی گفتگو)
-#  ادمین‌ها: /aistatus (آمار) و /aireload (لودِ دوباره‌ی ai_knowledge.txt)
+#  ادمین‌ها: /aistatus (آمار و وضعیتِ کلیدها)، /aireload (لودِ دوباره‌ی ai_knowledge.txt)،
+#            /aikeys (محدودیتِ هر کلید از خودِ OpenRouter)، /aimodels (مدل‌های رایگانِ الان)
 # ============================================================
 from __future__ import annotations
 
@@ -79,6 +80,24 @@ def register_ai_handlers(dp: Dispatcher, bot: Bot):
             return
         n = ai_core.reload_knowledge()
         await msg.answer(f"✅ {n} بخشِ دانش لود شد.")
+
+    @dp.message(Command("aikeys"))
+    async def cmd_aikeys(msg: Message):
+        if not _is_admin(msg.from_user.id):
+            return
+        try:
+            await msg.answer(html.escape(await ai_core.keys_report()))
+        except Exception as e:  # noqa: BLE001
+            await msg.answer(html.escape(f"خطا: {type(e).__name__}: {str(e)[:200]}"))
+
+    @dp.message(Command("aimodels"))
+    async def cmd_aimodels(msg: Message):
+        if not _is_admin(msg.from_user.id):
+            return
+        try:
+            await msg.answer(html.escape(await ai_core.free_models()))
+        except Exception as e:  # noqa: BLE001
+            await msg.answer(html.escape(f"خطا: {type(e).__name__}: {str(e)[:200]}"))
 
     async def _trigger(msg: Message):
         """فیلترِ دستی: True یعنی این پیام مالِ AI هست و کوئسشن رو برمی‌گردونه."""

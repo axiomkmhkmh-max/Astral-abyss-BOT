@@ -1,24 +1,29 @@
 # ============================================================
-#  ASTRAL ABYSS — 🤖 AI Core (OpenRouter / OpenAI-compatible)
+#  ASTRAL ABYSS — 🤖 AI Core v2 (OpenRouter + Groq، چرخشِ کلید)
 # ------------------------------------------------------------
 #  هسته‌ی مشترکِ هوش مصنوعی برای تلگرام و گپ. هیچ وابستگی‌ای به aiogram
 #  نداره. کارهایی که می‌کنه:
 #    • جواب‌دادن به سوال‌های بازی از روی متن‌های /help ربات
 #      (HELP_SECTIONS) + فایل اختیاریِ ai_knowledge.txt
-#    • محدودیت: cooldown هر کاربر، سقفِ روزانه‌ی هر کاربر، سقفِ روزانه‌ی
-#      کل (تا سهمیه‌ی رایگان یه‌جا تموم نشه)، سقفِ ۱۸ درخواست در دقیقه
-#    • فال‌بک: چند مدل پشتِ هم + (اختیاری) یه پرووایدرِ دوم مثل Groq
+#    • محدودیت: cooldown هر کاربر، سقفِ روزانه‌ی هر کاربر، سقفِ روزانه‌ی کل
+#    • روتر: چند کلید (OpenRouter و Groq) + چند مدل؛ کلیدِ rate-limit شده
+#      یا مرده خودکار کنار می‌ره و درخواست می‌ره سراغِ کلیدِ بعدی
 #
-#  متغیرهای محیطی (همه اختیاری به‌جز کلید):
-#    OPENROUTER_API_KEY   ← کلیدِ OpenRouter (بدونش AI غیرفعاله)
-#    OPENROUTER_MODELS    ← لیستِ مدل‌ها با کاما، به ترتیبِ اولویت
+#  متغیرهای محیطی (فقط یکی از کلیدها لازمه):
+#    OPENROUTER_API_KEYS  ← چند کلید با کاما/فاصله/خطِ جدید (چرخشی)
+#    OPENROUTER_API_KEY   ← یه کلیدِ تکی (هنوز کار می‌کنه)
+#    OPENROUTER_MODELS    ← مدل‌ها با کاما به ترتیبِ اولویت (هر درخواست
+#                           حداکثر ۳ تا مدل رو سمتِ خودِ OpenRouter فال‌بک می‌کنه)
 #                           پیش‌فرض: openrouter/free
-#    GROQ_API_KEY         ← (اختیاری) پرووایدرِ دومِ فال‌بک
+#    GROQ_API_KEYS / GROQ_API_KEY  ← کلید(های) Groq؛ فال‌بکِ قوی و سریع
 #    GROQ_MODEL           ← پیش‌فرض: llama-3.1-8b-instant
 #    AI_USER_COOLDOWN     ← ثانیه بین دو سوالِ یه نفر (پیش‌فرض ۱۰)
 #    AI_USER_DAILY        ← سقفِ روزانه‌ی هر نفر (پیش‌فرض ۱۵)
-#    AI_GLOBAL_DAILY      ← سقفِ روزانه‌ی کلِ ربات (پیش‌فرض ۴۰؛ اگه ۱۰$
-#                           شارژ کردی ۸۵۰ بذار)
+#    AI_GLOBAL_DAILY      ← سقفِ روزانه‌ی کلِ ربات (پیش‌فرض: خودکار از روی
+#                           تعدادِ کلیدها)
+#    AI_MAX_ATTEMPTS      ← حداکثر تلاش برای هر سوال (پیش‌فرض ۴؛ هر تلاشِ
+#                           ناموفق از سهمیه‌ی رایگان کم می‌کنه!)
+#    AI_MAX_TOKENS        ← پیش‌فرض ۷۰۰ (مدل‌های reasoning با عددِ کم جواب خالی می‌دن)
 #    AI_ENABLED           ← "0" یعنی خاموش
 # ============================================================
 from __future__ import annotations
@@ -45,24 +50,39 @@ def _int_env(name: str, default: int) -> int:
         return default
 
 
+def _keys_env(*names: str) -> list[str]:
+    out: list[str] = []
+    for n in names:
+        for k in re.split(r"[,\s]+", os.getenv(n) or ""):
+            k = k.strip().strip("\"'")
+            if k and k not in out:
+                out.append(k)
+    return out
+
+
 def _cfg():
     """هر بار از env می‌خونه تا بعد از تغییرِ Variables فقط ری‌استارت کافی باشه."""
     models = [m.strip() for m in (os.getenv("OPENROUTER_MODELS") or "openrouter/free").split(",") if m.strip()]
+    or_keys = _keys_env("OPENROUTER_API_KEYS", "OPENROUTER_API_KEY")
+    groq_keys = _keys_env("GROQ_API_KEYS", "GROQ_API_KEY")
+    auto_global = max(40, 45 * len(or_keys) + (10000 if groq_keys else 0))
     return {
         "enabled": os.getenv("AI_ENABLED", "1") != "0",
-        "or_key": (os.getenv("OPENROUTER_API_KEY") or "").strip(),
+        "or_keys": or_keys,
         "models": models,
-        "groq_key": (os.getenv("GROQ_API_KEY") or "").strip(),
+        "groq_keys": groq_keys,
         "groq_model": (os.getenv("GROQ_MODEL") or "llama-3.1-8b-instant").strip(),
         "cooldown": _int_env("AI_USER_COOLDOWN", 10),
         "user_daily": _int_env("AI_USER_DAILY", 15),
-        "global_daily": _int_env("AI_GLOBAL_DAILY", 40),
+        "global_daily": _int_env("AI_GLOBAL_DAILY", auto_global),
+        "max_attempts": max(1, _int_env("AI_MAX_ATTEMPTS", 4)),
+        "max_tokens": max(200, _int_env("AI_MAX_TOKENS", 700)),
     }
 
 
 def is_configured() -> bool:
     c = _cfg()
-    return c["enabled"] and bool(c["or_key"] or c["groq_key"])
+    return c["enabled"] and bool(c["or_keys"] or c["groq_keys"])
 
 
 # ─── شخصیت و قوانین ─────────────────────────────────────────
@@ -191,10 +211,10 @@ _user_last: dict[int, float] = {}
 _user_count: dict[int, int] = {}
 _global_count = 0
 _day = ""
-_minute_calls: deque = deque()
 _history: "OrderedDict[int, list[dict]]" = OrderedDict()
 _lock = asyncio.Lock()
 _stats = {"ok": 0, "fail": 0, "limited": 0, "last_error": "", "last_model": ""}
+_errors_recent: deque = deque(maxlen=6)
 
 
 def _roll_day():
@@ -223,43 +243,181 @@ def check_limits(uid: int, is_admin: bool = False) -> Optional[str]:
     return None
 
 
-def _minute_ok() -> bool:
-    now = time.time()
-    while _minute_calls and now - _minute_calls[0] > 60:
-        _minute_calls.popleft()
-    if len(_minute_calls) >= 18:  # سقفِ OpenRouter: ۲۰ در دقیقه
-        return False
-    _minute_calls.append(now)
-    return True
+# ─── روتر: کلیدها، کولداون، فال‌بک ──────────────────────────
+class _BadResponse(Exception):
+    """پاسخِ ۲۰۰ ولی بدونِ متن (خطای داخلِ بدنه یا مدلِ reasoning)."""
+
+    def __init__(self, detail="", status=None):
+        super().__init__(str(detail)[:300])
+        self.status_code = status
 
 
-# ─── تماس با مدل ───────────────────────────────────────────
+class _Slot:
+    """وضعیتِ زنده‌ی یه کلید."""
+
+    def __init__(self, provider: str, key: str):
+        self.provider = provider
+        self.key = key
+        self.base_url = OPENROUTER_URL if provider == "openrouter" else GROQ_URL
+        self.rpm = 18 if provider == "openrouter" else 28  # سقف‌ها: ۲۰ و ۳۰ در دقیقه
+        self.name = f"{provider}…{key[-4:]}"
+        self.cool_until = 0.0   # کولداونِ کوتاه (rate-limit دقیقه‌ای/ایراد موقت)
+        self.dead_until = 0.0   # سهمیه‌ی روزانه تموم / کلیدِ نامعتبر
+        self.calls: deque = deque()
+        self.ok = 0
+        self.fail = 0
+        self.last_error = ""
+        self.last_model = ""
+
+    def state(self, now: float) -> str:
+        if now < self.dead_until:
+            return f"⛔ تا {int(self.dead_until - now) // 60} دقیقه‌ی دیگه خاموش"
+        if now < self.cool_until:
+            return f"⏸ {int(self.cool_until - now)}s استراحت"
+        return "✅ آماده"
+
+    def usable(self, now: float) -> bool:
+        if now < self.dead_until or now < self.cool_until:
+            return False
+        while self.calls and now - self.calls[0] > 60:
+            self.calls.popleft()
+        return len(self.calls) < self.rpm
+
+
+_slots: dict[tuple[str, str], _Slot] = {}
+_rr = {"openrouter": 0, "groq": 0}
+
+
+def _get_slots(c: dict) -> list[_Slot]:
+    """به ترتیبِ اولویت: اول OpenRouter (چرخشی)، بعد Groq (چرخشی)."""
+    result: list[_Slot] = []
+    for provider, keys in (("openrouter", c["or_keys"]), ("groq", c["groq_keys"])):
+        group = []
+        for k in keys:
+            s = _slots.get((provider, k))
+            if s is None:
+                s = _slots[(provider, k)] = _Slot(provider, k)
+            group.append(s)
+        if group:
+            i = _rr[provider] % len(group)
+            _rr[provider] += 1
+            group = group[i:] + group[:i]
+        result += group
+    return result
+
+
+def _seconds_to_utc_midnight() -> int:
+    now = datetime.now(timezone.utc)
+    return int(86400 - (now.hour * 3600 + now.minute * 60 + now.second)) + 5
+
+
+def _classify(e: Exception) -> tuple[str, int]:
+    """(نوع، ثانیه‌ی خاموشیِ کلید). نوع: daily|minute|auth|policy|bad_request|transient"""
+    status = getattr(e, "status_code", None)
+    msg = str(e).lower()
+    if status == 429 or "rate limit" in msg or "rate-limit" in msg or "too many requests" in msg:
+        if "per-day" in msg or "per day" in msg or "daily" in msg:
+            return "daily", _seconds_to_utc_midnight()
+        return "minute", 45
+    if status in (401, 403) or "invalid api key" in msg or "no auth" in msg or "user not found" in msg:
+        if "moderation" in msg or "flagged" in msg:
+            return "bad_request", 0
+        return "auth", 3600
+    if status == 402 or "insufficient credits" in msg or "requires more credits" in msg:
+        return "daily", 3600
+    if status == 404 and ("data policy" in msg or "no endpoints found" in msg):
+        return "policy", 1800
+    if status == 404:
+        return "policy", 600
+    if status == 400:
+        return "bad_request", 0
+    return "transient", 20
+
+
+def _merge_system(messages: list[dict]) -> list[dict]:
+    """بعضی مدل‌ها (مثلِ Gemma) نقشِ system رو قبول نمی‌کنن: ادغامش می‌کنیم تو پیامِ کاربر."""
+    sys_txt = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
+    rest = [dict(m) for m in messages if m["role"] != "system"]
+    for m in rest:
+        if m["role"] == "user":
+            m["content"] = f"{sys_txt}\n\n=== سوالِ کاربر ===\n{m['content']}"
+            break
+    return rest
+
+
 def _client(base_url: str, key: str):
     from openai import AsyncOpenAI
     return AsyncOpenAI(
-        base_url=base_url, api_key=key, timeout=45.0, max_retries=0,
+        base_url=base_url, api_key=key, timeout=30.0, max_retries=0,
         default_headers={"HTTP-Referer": "https://t.me/", "X-Title": "Astral Abyss Bot"},
     )
 
 
-async def _call_openrouter(c: dict, messages: list[dict]) -> tuple[str, str]:
-    client = _client(OPENROUTER_URL, c["or_key"])
-    models = c["models"]
-    kwargs = dict(messages=messages, max_tokens=500, temperature=0.6)
-    if len(models) > 1:
-        # OpenRouter خودش اگه مدلِ اول rate-limit/خراب بود می‌ره سراغ بعدی
-        resp = await client.chat.completions.create(model=models[0], extra_body={"models": models}, **kwargs)
+async def _call_slot(slot: _Slot, c: dict, messages: list[dict], attempt: int) -> tuple[str, str]:
+    client = _client(slot.base_url, slot.key)
+    kwargs: dict = dict(messages=messages, max_tokens=c["max_tokens"], temperature=0.6)
+    if slot.provider == "groq":
+        kwargs["model"] = c["groq_model"]
     else:
-        resp = await client.chat.completions.create(model=models[0], **kwargs)
-    text = (resp.choices[0].message.content or "").strip()
-    return text, getattr(resp, "model", models[0]) or models[0]
+        models = c["models"]
+        k = attempt % len(models)  # هر تلاش ترتیبِ مدل‌ها یکم می‌چرخه
+        models = models[k:] + models[:k]
+        kwargs["model"] = models[0]
+        if len(models) > 1:
+            # فال‌بکِ سمتِ OpenRouter: همه‌ی مدل‌ها فقط «یه» درخواست از سهمیه حساب می‌شن
+            kwargs["extra_body"] = {"models": models[:3]}
+    resp = await client.chat.completions.create(**kwargs)
+    choices = getattr(resp, "choices", None)
+    if not choices:
+        err = getattr(resp, "error", None)
+        code = err.get("code") if isinstance(err, dict) else None
+        raise _BadResponse(err or "choices خالی", status=code if isinstance(code, int) else None)
+    text = (choices[0].message.content or "").strip()
+    if not text:
+        raise _BadResponse("متنِ خالی (احتمالاً مدلِ reasoning و max_tokens کم)")
+    return text, getattr(resp, "model", None) or kwargs["model"]
 
 
-async def _call_groq(c: dict, messages: list[dict]) -> tuple[str, str]:
-    client = _client(GROQ_URL, c["groq_key"])
-    resp = await client.chat.completions.create(
-        model=c["groq_model"], messages=messages, max_tokens=500, temperature=0.6)
-    return (resp.choices[0].message.content or "").strip(), c["groq_model"]
+async def _route(c: dict, messages: list[dict]) -> tuple[Optional[str], list[str]]:
+    """تا max_attempts تلاش، هر بار روی کلیدِ آماده‌ی بعدی. (متن|None، لیستِ خطاها)"""
+    errors: list[str] = []
+    tried: set[tuple[str, str]] = set()
+    deadline = time.time() + 55
+    attempts = 0
+    while attempts < c["max_attempts"] and time.time() < deadline:
+        now = time.time()
+        slot = next((s for s in _get_slots(c) if (s.provider, s.key) not in tried and s.usable(now)), None)
+        if slot is None:
+            break
+        tried.add((slot.provider, slot.key))
+        slot.calls.append(now)
+        attempts += 1
+        msgs = messages
+        for sub in range(2):  # sub=1: تلاشِ دوباره با system ادغام‌شده (فقط برای 400)
+            try:
+                text, model = await _call_slot(slot, c, msgs, attempts - 1)
+                slot.ok += 1
+                slot.last_model = model
+                return text, errors
+            except Exception as e:  # noqa: BLE001
+                kind, secs = _classify(e)
+                detail = f"{slot.name}: {kind} {getattr(e, 'status_code', '')} {type(e).__name__}: {str(e)[:200]}"
+                if kind == "bad_request" and sub == 0 and slot.provider == "openrouter" and any(
+                        w in str(e).lower() for w in ("instruction", "system", "developer")):
+                    msgs = _merge_system(messages)
+                    continue
+                slot.fail += 1
+                slot.last_error = detail
+                errors.append(detail)
+                log.warning("AI call failed: %s", detail)
+                if kind in ("daily", "auth", "policy"):
+                    slot.dead_until = time.time() + secs
+                elif kind in ("minute", "transient"):
+                    slot.cool_until = time.time() + secs
+                break
+    if not errors and attempts == 0:
+        errors.append("هیچ کلیدِ آماده‌ای نبود (همه rate-limit یا خاموش)")
+    return None, errors
 
 
 def clean_output(text: str) -> str:
@@ -281,7 +439,7 @@ async def ask(uid: int, question: str, *, player_hint: str = "", chat_mode: bool
         return "🤖 هوش مصنوعی هنوز فعال نشده (ادمین باید OPENROUTER_API_KEY رو ست کنه)."
     question = (question or "").strip()
     if not question:
-        return "سوالت رو بنویس. مثلاً: `/ask کاتانا چطور می‌گیرم؟`"
+        return "سوالت رو بنویس. مثلاً: /ask کاتانا چطور می‌گیرم؟"
     question = question[:600]
 
     async with _lock:  # چک و رزروِ سهمیه اتمی باشه
@@ -289,9 +447,6 @@ async def ask(uid: int, question: str, *, player_hint: str = "", chat_mode: bool
         if why:
             _stats["limited"] += 1
             return why
-        if not _minute_ok():
-            _stats["limited"] += 1
-            return "🚦 الان همه دارن می‌پرسن! چند ثانیه‌ی دیگه دوباره امتحان کن."
         _user_last[uid] = time.time()
         _user_count[uid] = _user_count.get(uid, 0) + 1
         _global_count += 1
@@ -305,31 +460,24 @@ async def ask(uid: int, question: str, *, player_hint: str = "", chat_mode: bool
     messages += _history.get(uid, [])[-4:]
     messages.append({"role": "user", "content": question})
 
-    errors = []
-    for name, caller, have in (("openrouter", _call_openrouter, bool(c["or_key"])),
-                               ("groq", _call_groq, bool(c["groq_key"]))):
-        if not have:
-            continue
-        try:
-            text, model = await caller(c, messages)
-            text = clean_output(text)
-            if not text:
-                raise ValueError("پاسخِ خالی")
-            _stats["ok"] += 1
-            _stats["last_model"] = f"{name}:{model}"
-            h = _history.setdefault(uid, [])
-            h += [{"role": "user", "content": question}, {"role": "assistant", "content": text}]
-            del h[:-8]
-            _history.move_to_end(uid)
-            while len(_history) > 500:
-                _history.popitem(last=False)
-            return text
-        except Exception as e:  # noqa: BLE001
-            errors.append(f"{name}: {type(e).__name__}: {str(e)[:160]}")
-            log.warning("AI call failed (%s): %s", name, e)
+    text, errors = await _route(c, messages)
+    text = clean_output(text) if text else ""
+    if text:
+        _stats["ok"] += 1
+        _stats["last_model"] = next((f"{s.name}:{s.last_model}" for s in _slots.values()
+                                     if s.last_model and s.ok), "")
+        h = _history.setdefault(uid, [])
+        h += [{"role": "user", "content": question}, {"role": "assistant", "content": text}]
+        del h[:-8]
+        _history.move_to_end(uid)
+        while len(_history) > 500:
+            _history.popitem(last=False)
+        return text
 
     _stats["fail"] += 1
-    _stats["last_error"] = " | ".join(errors)[:400]
+    _stats["last_error"] = " | ".join(errors)[:600]
+    for er in errors:
+        _errors_recent.append(er[:220])
     # سهمیه‌ی کاربر رو پس بده چون جواب نگرفته
     _user_count[uid] = max(0, _user_count.get(uid, 1) - 1)
     _global_count = max(0, _global_count - 1)
@@ -340,15 +488,70 @@ async def ask(uid: int, question: str, *, player_hint: str = "", chat_mode: bool
 def status_text() -> str:
     c = _cfg()
     _roll_day()
-    return (
-        "🤖 وضعیتِ AI\n"
-        f"فعال: {'بله' if is_configured() else 'خیر (کلید ست نشده)'}\n"
-        f"مدل‌ها: {', '.join(c['models'])}\n"
-        f"Groq فال‌بک: {'هست' if c['groq_key'] else 'نیست'}\n"
-        f"امروز: {_global_count}/{c['global_daily']} درخواست\n"
-        f"کاربرِ امروز: {len(_user_count)} نفر | کولداون {c['cooldown']}s | سقفِ نفری {c['user_daily']}\n"
-        f"موفق/ناموفق/محدود: {_stats['ok']}/{_stats['fail']}/{_stats['limited']}\n"
-        f"آخرین مدل: {_stats['last_model'] or '-'}\n"
-        f"بخش‌های دانش: {len(_load_kb())}\n"
-        f"آخرین خطا: {_stats['last_error'] or '-'}"
-    )
+    now = time.time()
+    slots = _get_slots(c)
+    lines = [
+        "🤖 وضعیتِ AI",
+        f"فعال: {'بله' if is_configured() else 'خیر (کلید ست نشده)'}",
+        f"مدل‌های OpenRouter: {', '.join(c['models'])}",
+        f"Groq: {c['groq_model'] if c['groq_keys'] else 'نیست'}",
+        f"امروز: {_global_count}/{c['global_daily']} درخواست",
+        f"کاربرِ امروز: {len(_user_count)} نفر | کولداون {c['cooldown']}s | سقفِ نفری {c['user_daily']}",
+        f"موفق/ناموفق/محدود: {_stats['ok']}/{_stats['fail']}/{_stats['limited']}",
+        f"آخرین مدل: {_stats['last_model'] or '-'}",
+        f"بخش‌های دانش: {len(_load_kb())}",
+        "",
+        f"🔑 کلیدها ({len(slots)}):",
+    ]
+    for s in slots:
+        lines.append(f"• {s.name} — {s.state(now)} | ✔{s.ok} ✘{s.fail}")
+        if s.last_error:
+            lines.append(f"   ↳ {s.last_error[:160]}")
+    if _errors_recent:
+        lines += ["", "آخرین خطاها:"] + [f"- {e}" for e in list(_errors_recent)[-4:]]
+    txt = "\n".join(lines)
+    if any(w in txt for w in ("policy", "data policy")):
+        txt += ("\n\n💡 خطای policy/404: تو openrouter.ai/settings/privacy گزینه‌ی "
+                "مربوط به free models (publication) رو روشن کن.")
+    return txt[:3800]
+
+
+async def keys_report() -> str:
+    """از خودِ OpenRouter می‌پرسه هر کلید چه محدودیتی داره (GET /api/v1/key)."""
+    import aiohttp
+    c = _cfg()
+    if not c["or_keys"]:
+        return "کلیدِ OpenRouter ست نشده."
+    out = []
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as ses:
+        for k in c["or_keys"]:
+            try:
+                async with ses.get(f"{OPENROUTER_URL}/key", headers={"Authorization": f"Bearer {k}"}) as r:
+                    body = await r.json(content_type=None)
+                    if r.status != 200:
+                        out.append(f"…{k[-4:]}: HTTP {r.status} {str(body)[:120]}")
+                        continue
+                    d = body.get("data", body)
+                    out.append(
+                        f"…{k[-4:]}: free_tier={d.get('is_free_tier')} usage={d.get('usage')} "
+                        f"limit={d.get('limit')} rate={d.get('rate_limit')}")
+            except Exception as e:  # noqa: BLE001
+                out.append(f"…{k[-4:]}: {type(e).__name__}: {str(e)[:100]}")
+    return "🔑 وضعیتِ کلیدهای OpenRouter\n" + "\n".join(out)
+
+
+async def free_models(limit: int = 25) -> str:
+    """لیستِ مدل‌های رایگانِ همین الان (چون مدل‌های رایگان بی‌خبر عوض می‌شن)."""
+    import aiohttp
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as ses:
+        async with ses.get(f"{OPENROUTER_URL}/models") as r:
+            data = (await r.json(content_type=None)).get("data", [])
+    rows = []
+    for m in data:
+        p = m.get("pricing") or {}
+        if str(m.get("id", "")).endswith(":free") or (str(p.get("prompt")) == "0" and str(p.get("completion")) == "0"):
+            rows.append((m.get("context_length") or 0, m["id"]))
+    rows.sort(reverse=True)
+    lines = [f"{i}  ({ctx // 1000}k)" for ctx, i in rows[:limit]]
+    return (f"🆓 مدل‌های رایگانِ الان ({len(rows)} تا؛ {len(lines)} تای اول):\n" + "\n".join(lines)
+            + "\n\nچند‌تاشو با کاما بذار تو OPENROUTER_MODELS.")
