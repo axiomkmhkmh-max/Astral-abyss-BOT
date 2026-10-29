@@ -1077,6 +1077,9 @@ async def cmd_start(msg: Message, state: FSMContext):
 
     if not player:
         player = create_player(uid, uname, None)
+        import funnel
+        funnel.mark(player, "started")
+        await asave_player(uid, player)
 
         log_sync(
             f"👤 **NEW PLAYER (پیش‌ثبت‌نام)**\n"
@@ -1407,6 +1410,8 @@ async def _finish_character_setup(chat_send, uid: int, player: dict):
     امضای (text, reply_markup) هست (query.message.answer یا msg.answer)."""
     import onboarding
     onboarding.start_tutorial(player)  # تیوتوریالِ تایپی شروع می‌شه
+    import funnel
+    funnel.mark(player, "class_chosen")
     await asave_player(uid, player)
 
     spawn = player.get("map", random.choice(SPAWN_MAPS))
@@ -1430,7 +1435,9 @@ async def _finish_character_setup(chat_send, uid: int, player: dict):
     )
     await chat_send(
         f"🌑 حالا وارد Abyss شدی.\n\n{onboarding.welcome_text()}",
-        ReplyKeyboardRemove(),
+        __import__("aiogram.types", fromlist=["x"]).InlineKeyboardMarkup(inline_keyboard=[[
+            __import__("aiogram.types", fromlist=["x"]).InlineKeyboardButton(
+                text="🗺 لوت کن", callback_data=f"mn:w:{uid}:loot")]]),
     )
 
 

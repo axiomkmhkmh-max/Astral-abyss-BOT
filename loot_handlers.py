@@ -587,6 +587,9 @@ async def cb_loot_location(cb: CallbackQuery, bot: Bot):
     # ─── آنبوردینگ: قدمِ سوم (لوت) تموم شد ────────────────────────
     import onboarding
     grad_hint = onboarding.on_loot_visited(player)
+    import funnel
+    if funnel.mark(player, "first_loot") and not grad_hint:
+        await asave_player(uid, player)
     if grad_hint:
         await asave_player(uid, player)
         from bot import main_menu_text, _is_group_chat

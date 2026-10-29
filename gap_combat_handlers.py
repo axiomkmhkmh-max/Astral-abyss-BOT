@@ -159,6 +159,8 @@ def apply_hardcore_death_penalty(player: dict, penalty_mult: float = 1.0) -> lis
     from newbie_guard import is_newbie, light_death_lines
     if is_newbie(player):
         return light_death_lines(player)
+    from newbie_guard import simple_death_lines
+    return simple_death_lines(player, penalty_mult)   # 🆕 قانونِ واحد؛ کدِ قدیمیِ پایین دیگه اجرا نمی‌شه
 
     lines = []
 

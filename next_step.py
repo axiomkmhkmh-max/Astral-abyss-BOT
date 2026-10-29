@@ -99,3 +99,34 @@ def suggest(player: dict) -> dict:
         return {"text": hh, "action": "attack"}
     return {"text": "🗺 لوت کن و بجنگ تا برای آزمونِ بعدی قوی‌تر بشی — «وضعیت» نشون می‌ده چقدر مونده.",
             "action": "loot"}
+
+
+# ═══════════════════════════════════════════════════════════════
+#  📋 کارتِ ماموریت‌ها — یه صفحه به‌جای چند سیستمِ کوئستِ جدا
+# ═══════════════════════════════════════════════════════════════
+def missions_card(player: dict) -> str:
+    import datetime
+    lvl = int(player.get("level", 1) or 1)
+    lines = ["📋 **ماموریت‌های امروز**\n"]
+    lines.append("🎯 **هدفِ اصلی:** " + suggest(player)["text"].split("\n")[0])
+
+    def _daily():
+        from combat import get_today_quests
+        dq = player.get("daily_quest_progress") or {}
+        prog = dq.get("progress", {}) if dq.get("date") == datetime.date.today().isoformat() else {}
+        min_lvl = {"heavy": 5, "combo": 10}
+        out = []
+        for q in get_today_quests():
+            if lvl < min_lvl.get(q["type"], 1):
+                continue   # کوئستی که حمله‌اش هنوز برای این پلیر باز نشده نشون داده نمی‌شه
+            have = min(prog.get(q["id"], 0), q["target"])
+            out.append(f"{'✅' if have >= q['target'] else '▫️'} {q['name']}: {q['desc']} ({have}/{q['target']})")
+        return out[:2]
+    for row in (_try(_daily, []) or []):
+        lines.append(row)
+
+    hh = _try(lambda: __import__("hunt_questline").next_hunt_hint(player))
+    if hh and lvl >= 5:
+        lines.append(hh)
+    lines.append("\n▶️ دکمه‌ی «ادامه» همیشه بهت می‌گه قدمِ بعدی چیه.")
+    return "\n".join(lines)

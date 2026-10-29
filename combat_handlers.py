@@ -160,6 +160,8 @@ def apply_hardcore_death_penalty(player: dict, penalty_mult: float = 1.0) -> lis
     from newbie_guard import is_newbie, light_death_lines
     if is_newbie(player):
         return light_death_lines(player)
+    from newbie_guard import simple_death_lines
+    return simple_death_lines(player, penalty_mult)   # 🆕 قانونِ واحد؛ کدِ قدیمیِ پایین دیگه اجرا نمی‌شه
 
     lines = []
 
@@ -467,7 +469,10 @@ async def _render_attack_panel(uid: int, player: dict) -> tuple[str, InlineKeybo
 
     rage = player.get("rage", 0)
     buttons = []
+    from newbie_guard import attack_unlocked, show_extras, auto_pick
     for key, atk in ATTACK_TYPES.items():
+        if not attack_unlocked(player, key):
+            continue
         cd = check_cooldown(uid, key)
         if key == "combo" and combo < 3:
             btn_text = f"{atk['name']} (combo {combo}/3 ❌)"
@@ -485,32 +490,35 @@ async def _render_attack_panel(uid: int, player: dict) -> tuple[str, InlineKeybo
             cb = f"atkc:{key}" if fight else f"atk:{key}"
         buttons.append([InlineKeyboardButton(text=btn_text, callback_data=cb, style=ButtonStyle.PRIMARY)])
 
-    # 🆕 ردیفِ سوییچِ استنس (تهاجمی/متعادل/دفاعی)
     cur_stance = stance.get_stance(player)
     st_cd = stance.stance_switch_cooldown(player)
-    stance_buttons = []
-    for key in stance.STANCE_ORDER:
-        s = stance.STANCES[key]
-        mark = "🔘" if key == cur_stance else ""
-        label = f"{mark}{s['name']}" if key != cur_stance else f"✅{s['name']}"
-        stance_buttons.append(InlineKeyboardButton(
-            text=label,
-            callback_data=f"stance:{key}" if key != cur_stance and st_cd == 0 else "atk:locked",
-            style=ButtonStyle.PRIMARY,
-        ))
-    buttons.append(stance_buttons)
-    buttons.append([InlineKeyboardButton(text="❓ فرقِ حملات چیه؟", callback_data="atk_help", style=ButtonStyle.PRIMARY)])
-    buttons.append([InlineKeyboardButton(text="📊 آمار مبارزه", callback_data="atk_stats", style=ButtonStyle.PRIMARY)])
-    buttons.append([InlineKeyboardButton(text="📜 کوئست حمله", callback_data="hunt:panel", style=ButtonStyle.PRIMARY)])
+    if show_extras(player):
+        # 🆕 ردیفِ سوییچِ استنس (تهاجمی/متعادل/دفاعی)
+        cur_stance = stance.get_stance(player)
+        st_cd = stance.stance_switch_cooldown(player)
+        stance_buttons = []
+        for key in stance.STANCE_ORDER:
+            s = stance.STANCES[key]
+            mark = "🔘" if key == cur_stance else ""
+            label = f"{mark}{s['name']}" if key != cur_stance else f"✅{s['name']}"
+            stance_buttons.append(InlineKeyboardButton(
+                text=label,
+                callback_data=f"stance:{key}" if key != cur_stance and st_cd == 0 else "atk:locked",
+                style=ButtonStyle.PRIMARY,
+            ))
+        buttons.append(stance_buttons)
+        buttons.append([InlineKeyboardButton(text="❓ فرقِ حملات چیه؟", callback_data="atk_help", style=ButtonStyle.PRIMARY)])
+        buttons.append([InlineKeyboardButton(text="📊 آمار مبارزه", callback_data="atk_stats", style=ButtonStyle.PRIMARY)])
+        buttons.append([InlineKeyboardButton(text="📜 کوئست حمله", callback_data="hunt:panel", style=ButtonStyle.PRIMARY)])
 
-    # ✨ Stage 3: دسترسیِ سریع به پنلِ فعالِ کلاس (طلسم/مزدور/نورِ مقدس/دخمه)
-    from class_system import CLASSES as _CLS_MAP
-    _cls_info = _CLS_MAP.get(player.get("class"), {})
-    if _cls_info:
-        buttons.append([InlineKeyboardButton(
-            text=f"{_cls_info.get('emoji','⚜️')} قدرت‌های {_cls_info.get('name_fa','کلاس')}",
-            callback_data="class_panel", style=ButtonStyle.PRIMARY,
-        )])
+        # ✨ Stage 3: دسترسیِ سریع به پنلِ فعالِ کلاس (طلسم/مزدور/نورِ مقدس/دخمه)
+        from class_system import CLASSES as _CLS_MAP
+        _cls_info = _CLS_MAP.get(player.get("class"), {})
+        if _cls_info:
+            buttons.append([InlineKeyboardButton(
+                text=f"{_cls_info.get('emoji','⚜️')} قدرت‌های {_cls_info.get('name_fa','کلاس')}",
+                callback_data="class_panel", style=ButtonStyle.PRIMARY,
+            )])
 
     if fight:
         enemy = fight
@@ -543,6 +551,8 @@ async def _render_attack_panel(uid: int, player: dict) -> tuple[str, InlineKeybo
             f"با زدن یکی از دکمه‌های حمله پایین، ۳ تا از دشمن‌های همین نقشه ({map_name}) میاد "
             f"که خودت یکیشو برای حمله انتخاب کنی. دشمن‌های این نقشه:\n{preview_txt}"
         )
+        if auto_pick(player):
+            fight_txt = "\n\n🎯 دکمه‌ی حمله رو بزن — امن‌ترین دشمنِ اطراف خودکار انتخاب می‌شه."
 
     # Event bonus indicator
     event_txt = f"\n\n🎉 **ایونت امروز:** {event['name']}\n_{event['desc']}_"
@@ -591,6 +601,9 @@ async def _render_attack_panel(uid: int, player: dict) -> tuple[str, InlineKeybo
         f"{event_txt}"
         f"{hunt_hint_txt}"
     )
+    if not show_extras(player):   # تازه‌کار: صفحه‌ی خیلی کوتاه
+        text = (f"⚔️ **حمله**\n\n❤️ {player.get('hp',100)}/{emax_hp} {hp_txt}\n"
+                f"📍 مپ: **{map_name}**{fight_txt}{fatigue_txt}")
     return text, InlineKeyboardMarkup(inline_keyboard=buttons)
 
 async def cmd_attack(msg: Message):
@@ -696,7 +709,8 @@ async def cb_atk_select(cb: CallbackQuery):
     # ─── نخبه‌ها تو /attack هم ممکنه ظاهر بشن — ولی نه تو همون اولین
     # نبردِ تیوتوریال (اونجا باید تضمینی راحت باشه) ─────────────────
     import onboarding
-    if not onboarding.is_in_tutorial(player):
+    from newbie_guard import is_newbie
+    if not onboarding.is_in_tutorial(player) and not is_newbie(player):
         from elite_mobs import maybe_elevate
         enemies = [maybe_elevate(e, player, map_name) for e in enemies]
 
@@ -710,6 +724,18 @@ async def cb_atk_select(cb: CallbackQuery):
             _e["max_hp"] = _e["hp"]
 
     combat_sessions[uid] = {"atk_type": atk_type, "enemies": enemies}
+
+    # 🆕 تازه‌کار: صفحه‌ی «کدوم دشمن؟» حذف — امن‌ترین دشمن خودکار انتخاب می‌شه
+    from newbie_guard import auto_pick, safest_index
+    if auto_pick(player) and enemies:
+        _idx = safest_index(enemies)
+        _cb2 = cb.model_copy(update={"data": f"atk_enemy:{_idx}"})
+        try:
+            _cb2 = _cb2.as_(cb.bot)
+        except Exception:
+            pass
+        await cb_atk_enemy(_cb2)
+        return
 
     atk = ATTACK_TYPES[atk_type]
     buttons = []
@@ -1243,6 +1269,20 @@ async def resolve_hit(cb: CallbackQuery, player: dict, atk_type: str):
         tutorial_hint = onboarding.strip_graduation_mark(tutorial_hint)
         await asave_player(uid, player)  # tutorial_step/tutorial_done تغییر کرد، جداگونه ذخیره‌ش کن
 
+    import funnel
+    _fc = funnel.mark(player, "first_attack")
+    if killed:
+        _fc |= funnel.mark(player, "first_kill")
+    if player.get("hp", 1) > 0 and respawned_map:
+        _fc |= funnel.mark(player, "first_death")
+    if player.get("level", 1) >= 5:
+        _fc |= funnel.mark(player, "lvl5")
+    if player.get("level", 1) >= 10:
+        _fc |= funnel.mark(player, "lvl10")
+    _fc |= funnel.touch(player)
+    if _fc:
+        await asave_player(uid, player)
+
     # Build result text
     char = ALL_CHARACTERS.get(player.get("character",""), {})
     elem = char.get("element", "")
@@ -1297,6 +1337,8 @@ async def resolve_hit(cb: CallbackQuery, player: dict, atk_type: str):
 
     if leveled:
         lines.append(f"\n\n🎉 **LEVEL UP! (レベルアップ！) → {player['level']}**\n❤️ HP کامل شد!")
+        from newbie_guard import unlock_note
+        lines.append(unlock_note(old_level, player["level"]))
         _rk = rank_up_announcement(old_level, player["level"], player.get("rebirth_count", 0))
         if _rk:
             lines.append(f"\n\n{_rk}")
@@ -1346,6 +1388,7 @@ async def resolve_hit(cb: CallbackQuery, player: dict, atk_type: str):
     elif respawned_map:
         # پلیر مُرده و نبرد قطع شده — دیگه چیزی برای «ادامه» نیست
         kb = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="▶️ ادامه", callback_data=f"mn:n:{uid}", style=ButtonStyle.PRIMARY),
             InlineKeyboardButton(text="🔙 منوی حمله", callback_data="atk:menu", style=ButtonStyle.PRIMARY),
         ]])
     else:
