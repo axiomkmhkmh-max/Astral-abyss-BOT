@@ -235,8 +235,6 @@ body.no3d .zc [data-act=ztilt],body.no3d .zc [data-act=zrot]{display:none}
 
 /* ═════════ اطلس خفن: افکت‌های زنده، مینی‌مپ، ریل قلمروها، پیش‌نمایش مسیر ═════════ */
 #afx{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none}
-#az.rvl #aimg{animation:rvl 1.6s ease-out}
-@keyframes rvl{from{filter:brightness(.2) saturate(.2)}to{filter:none}}
 #atlas::before{content:"";position:absolute;inset:6px;z-index:3;pointer-events:none;opacity:.55;
   background:
   linear-gradient(#00fff7,#00fff7) top left/24px 1.5px no-repeat,linear-gradient(#00fff7,#00fff7) top left/1.5px 24px no-repeat,
@@ -246,21 +244,18 @@ body.no3d .zc [data-act=ztilt],body.no3d .zc [data-act=zrot]{display:none}
 /* مرز قلمروها: همیشه کم‌رنگ، موقع لمس روشن */
 .tp{stroke-opacity:.2;stroke-width:1.6}
 .tp:hover{fill-opacity:.1;stroke-opacity:.85}
-.tp.z-danger{animation:dgr 3.2s ease-in-out infinite}
-@keyframes dgr{0%,100%{stroke-opacity:.16}50%{stroke-opacity:.6}}
-@keyframes brt{0%,100%{fill-opacity:0}50%{fill-opacity:.11}}
-#az .tp.on{fill:#00fff7;animation:adash 1.4s linear infinite,brt 2.4s ease-in-out infinite}
+.tp.z-danger{stroke-opacity:.4}
+#az .tp.on{fill:#00fff7;fill-opacity:.05;filter:none}
 /* پین‌ها */
 .ap .st{position:relative}
-.ap[data-z=danger] .st::before{content:"";position:absolute;inset:-5px;border-radius:50%;border:1.5px solid var(--zc);animation:pl 2.8s ease-out infinite;pointer-events:none}
+.ap[data-z=danger] .st::before{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--zc);opacity:.6;pointer-events:none}
 .ap.here .st::after,.ap.dest .st::after{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px dashed #00fff7;animation:spin 7s linear infinite;pointer-events:none}
 .ap.dest .st::after{animation-duration:2.4s;border-color:#ffd166}
 .ap.on .st{animation:pop .35s cubic-bezier(.2,1.6,.4,1)}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pop{from{transform:scale(.7)}to{transform:scale(1.2)}}
 /* مسیر و ETA */
-#rt0{animation:adash 1.1s linear infinite}
-.r0.pv{stroke:#ffd166;stroke-opacity:.85;stroke-dasharray:2 10;animation:adash 1s linear infinite}
+.r0.pv{stroke:#ffd166;stroke-opacity:.85;stroke-dasharray:2 10}
 #eta{position:absolute;width:0;height:0;z-index:5;pointer-events:none;transform:scale(calc(1 / var(--s,1)));transform-origin:0 0}
 #eta span{position:absolute;left:0;top:0;transform:translate(-50%,16px);white-space:nowrap;padding:1px 9px;background:rgba(3,10,16,.92);border:1px solid #00fff7;color:#00fff7;font:700 11px/1.7 Orbitron,Vazirmatn,sans-serif;border-radius:2px;box-shadow:0 0 12px rgba(0,255,247,.4);direction:rtl}
 #eta.pv span{border-color:#ffd166;color:#ffd166;box-shadow:0 0 12px rgba(255,209,102,.35)}
@@ -272,7 +267,7 @@ body.no3d .zc [data-act=ztilt],body.no3d .zc [data-act=zrot]{display:none}
 #mm .md{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:var(--zc);box-shadow:0 0 4px var(--zc)}
 #mm .md.on{width:8px;height:8px;margin:-4px 0 0 -4px;background:#00fff7;box-shadow:0 0 8px #00fff7}
 #mm .mme{position:absolute;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:#fff;border:1.5px solid #00fff7;animation:pl 2s ease-out infinite}
-#mm .mv{position:absolute;border:1.5px solid #00fff7;box-shadow:0 0 8px rgba(0,255,247,.6),0 0 0 200px rgba(2,6,10,.5)}
+#mm .mv{position:absolute;border:1.5px solid #00fff7;background:rgba(0,255,247,.14)}
 /* ریل انتخاب سریع قلمرو */
 #rd .rail{position:relative;display:flex;gap:6px;overflow-x:auto;direction:ltr;padding:0 0 8px;scrollbar-width:none;overscroll-behavior:contain}
 #rd .rail::-webkit-scrollbar{display:none}
@@ -888,7 +883,7 @@ function atFly(key, s2) {
 function fitMap() {
   const r = $("#atlas").getBoundingClientRect(); if (!r.width) return;
   ATL.cw = r.width; ATL.ch = r.height; ATL.cov = Math.max(ATL.cw / IW, ATL.ch / IH); ATL.min = Math.min(ATL.cw / IW, ATL.ch / IH) * .98; ATL.max = Math.max(ATL.cov * 3.2, 1.4);
-  if (!ATL.ready) { ATL.ready = true; $("#az").classList.add("rvl"); setTimeout(() => $("#az").classList.remove("rvl"), 1800); ATL.s = ATL.min; ATL.x = ATL.y = 0; atApply(); atFly((S && S.map) || sel, ATL.cov * 1.15); } else atApply();
+  if (!ATL.ready) { ATL.ready = true; ATL.s = ATL.min; ATL.x = ATL.y = 0; atApply(); atFly((S && S.map) || sel, ATL.cov * 1.15); } else atApply();
   fxResize();
 }
 function zoomAt(f, cx, cy) { cancelAnimationFrame(ATL.raf); const s2 = Math.max(ATL.min, Math.min(ATL.max, ATL.s * f)), r = s2 / ATL.s; ATL.x = cx - (cx - ATL.x) * r; ATL.y = cy - (cy - ATL.y) * r; ATL.s = s2; atApply(); }
@@ -1163,13 +1158,14 @@ function fxBolt(key, b, T, c, s, ox, oy, dpr) {
   }
   if (T >= st.end) return;
   const u = 1 - (T - st.t0) / .24, fl = (Math.sin((T - st.t0) * 60) > -.2 ? 1 : .35) * u;
-  c.save(); c.globalAlpha = fl; c.strokeStyle = "rgb(215,232,255)"; c.lineWidth = Math.max(1.5, 2.2 * s) * dpr; c.lineJoin = "round"; c.shadowColor = "rgb(150,190,255)"; c.shadowBlur = 14 * dpr;
+  c.save(); c.globalAlpha = fl; c.strokeStyle = "rgb(215,232,255)"; c.lineWidth = Math.max(1.5, 2.2 * s) * dpr; c.lineJoin = "round"; 
   c.beginPath(); st.pts.forEach(([x, y], i) => { const X = (x * s + ox) * dpr, Y = (y * s + oy) * dpr; i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.stroke();
   c.shadowBlur = 0; c.globalAlpha = .14 * u; c.fillStyle = "rgb(170,200,255)"; c.beginPath();
   TERR[key].forEach(([x, y], i) => { const X = (x * s + ox) * dpr, Y = (y * s + oy) * dpr; i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.closePath(); c.fill(); c.restore();
 }
 function fxFrame(t) {
   FX.raf = 0; if (view !== "map" || document.hidden || !FX.cx || !ATL.cw) return;
+  if (t - FX.last < 32) { FX.raf = requestAnimationFrame(fxFrame); return; }
   const dt = Math.min(.05, (t - FX.last) / 1000 || .016); FX.last = t;
   const T = t / 1000, c = FX.cx, dpr = FX.dpr, s = ATL.s, ox = ATL.x, oy = ATL.y, k = Math.max(.8, Math.min(2.4, s * 1.3));
   c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, FX.cv.width, FX.cv.height); c.globalCompositeOperation = "lighter";
@@ -1197,7 +1193,7 @@ function fxFrame(t) {
 }
 function fxPlace() { if (FX.cv) FX.cv.style.transform = `translate(${-ATL.x / ATL.s}px,${-ATL.y / ATL.s}px) scale(${1 / ATL.s})`; }
 function fxResize() {
-  if (!FX.cv || !ATL.cw) return; FX.dpr = Math.min(2, devicePixelRatio || 1);
+  if (!FX.cv || !ATL.cw) return; FX.dpr = 1;
   FX.cv.width = Math.round(ATL.cw * FX.dpr); FX.cv.height = Math.round(ATL.ch * FX.dpr); FX.cv.style.width = ATL.cw + "px"; FX.cv.style.height = ATL.ch + "px"; fxPlace();
 }
 function fxStart() { if (FX.off || FX.raf || !FX.cx) return; FX.last = performance.now(); FX.raf = requestAnimationFrame(fxFrame); }
@@ -1205,7 +1201,7 @@ function fxStop() { cancelAnimationFrame(FX.raf); FX.raf = 0; }
 (function fxInit() {
   const cv = $("#afx"); if (!cv) return;
   try { FX.off = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (_) {}
-  FX.cv = cv; FX.cx = cv.getContext("2d"); const low = (navigator.hardwareConcurrency || 8) <= 4 ? .6 : 1;
+  FX.cv = cv; FX.cx = cv.getContext("2d"); const low = (navigator.hardwareConcurrency || 8) <= 4 ? .4 : .6;
   for (const key in FXD) {
     if (!TERR[key]) continue; const b = FX.B[key] = fxBB(key), d = FXD[key], n = Math.round(d.n * low);
     for (let i = 0; i < n; i++) { const p = {d, b}; fxSpawn(p, true); FX.P.push(p); }
