@@ -64,6 +64,7 @@ TOKEN = os.getenv("BOT_TOKEN", "")
 GROUP_COMMANDS = [
     BotCommand(command="start", description="🌌 شروع ماجراجویی"),
     BotCommand(command="help", description="❓ راهنمای دستورات"),
+    BotCommand(command="ask", description="🤖 سوال از هوش مصنوعیِ بازی"),
     BotCommand(command="status", description="📊 وضعیت شخصیت"),
     BotCommand(command="class", description="⚜️ قدرت‌های فعالِ کلاس"),
     BotCommand(command="classascend", description="🏔 ارتقای کلاس (از لولِ ۱۵)"),
@@ -2920,6 +2921,8 @@ async def main():
     from guild_war_handlers import register_guild_war_handlers
 
     register_help_handlers(dp, bot)
+    from ai_handlers import register_ai_handlers  # 🤖 دستیار هوش مصنوعی (OpenRouter)
+    register_ai_handlers(dp, bot)
     from commands_panel import register_commands_panel
     register_commands_panel(dp)
     register_team_pvp_handlers(dp, bot)
