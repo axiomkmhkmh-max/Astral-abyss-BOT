@@ -9,6 +9,7 @@
 #    • ریپلای روی یکی از جواب‌های خودِ AI  (ادامه‌ی گفتگو)
 #  ادمین‌ها: /aistatus (آمار و وضعیتِ کلیدها)، /aireload (لودِ دوباره‌ی ai_knowledge.txt)،
 #            /aikeys (محدودیتِ هر کلید از خودِ OpenRouter)، /aimodels (مدل‌های رایگانِ الان)
+#            /aifind سوال  (ببین AI برای این سوال کدوم تکه‌های ربات رو پیدا می‌کنه)
 # ============================================================
 from __future__ import annotations
 
@@ -98,6 +99,12 @@ def register_ai_handlers(dp: Dispatcher, bot: Bot):
             await msg.answer(html.escape(await ai_core.free_models()))
         except Exception as e:  # noqa: BLE001
             await msg.answer(html.escape(f"خطا: {type(e).__name__}: {str(e)[:200]}"))
+
+    @dp.message(Command("aifind"))
+    async def cmd_aifind(msg: Message, command: CommandObject):
+        if not _is_admin(msg.from_user.id):
+            return
+        await msg.answer(html.escape(ai_core.debug_find(command.args or "")))
 
     async def _trigger(msg: Message):
         """فیلترِ دستی: True یعنی این پیام مالِ AI هست و کوئسشن رو برمی‌گردونه."""

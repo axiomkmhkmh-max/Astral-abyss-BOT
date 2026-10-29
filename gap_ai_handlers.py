@@ -16,6 +16,7 @@ from gap_admin_panel import is_gap_admin
 import ai_core
 
 _PREFIX = re.compile(r"^\s*(سوال|سؤال|بپرس|ask)\s*[:：،,]?\s+(.+)$", re.S | re.I)
+_CMD_FIND = re.compile(r"^\s*/aifind(?:@\w+)?\s*(.*)$", re.S | re.I)
 _CMD = re.compile(r"^\s*/(?:ask|ai)(?:@\w+)?\s*(.*)$", re.S | re.I)
 
 
@@ -70,11 +71,18 @@ async def cmd_aimodels(msg: Message):
             await msg.answer(f"خطا: {type(e).__name__}: {str(e)[:200]}")
 
 
+async def cmd_aifind(msg: Message):
+    if is_gap_admin(msg):
+        m = _CMD_FIND.match(msg.text or "")
+        await msg.answer(ai_core.debug_find((m.group(1) if m else "").strip()))
+
+
 def register_gap_ai_handlers(dp: GapDispatcher):
     dp.register_message(cmd_ask, commands=["ask", "ai"])
     dp.register_message(cmd_aistatus, commands=["aistatus"])
     dp.register_message(cmd_aireload, commands=["aireload"])
     dp.register_message(cmd_aikeys, commands=["aikeys"])
     dp.register_message(cmd_aimodels, commands=["aimodels"])
+    dp.register_message(cmd_aifind, commands=["aifind"])
     for w in ("سوال", "بپرس"):
         dp.register_message(on_prefix, text_startswith=w)
