@@ -232,6 +232,55 @@ body.no3d .zc [data-act=ztilt],body.no3d .zc [data-act=zrot]{display:none}
 #me i{position:absolute;left:-23px;bottom:22px;width:46px;height:46px;border-radius:50%;border:2px solid #00fff7;background:var(--av) center/cover,#06121a;box-shadow:0 0 18px rgba(0,255,247,.75),0 4px 10px #000}
 #me i::after{content:"";position:absolute;left:50%;bottom:-8px;margin-left:-6px;border:6px solid transparent;border-top:8px solid #00fff7;border-bottom:0}
 .zc button.on{--bd:var(--cy);color:var(--cy)}
+
+/* ═════════ اطلس خفن: افکت‌های زنده، مینی‌مپ، ریل قلمروها، پیش‌نمایش مسیر ═════════ */
+#afx{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none}
+#az.rvl #aimg{animation:rvl 1.6s ease-out}
+@keyframes rvl{from{filter:brightness(.2) saturate(.2)}to{filter:none}}
+#atlas::before{content:"";position:absolute;inset:6px;z-index:3;pointer-events:none;opacity:.55;
+  background:
+  linear-gradient(#00fff7,#00fff7) top left/24px 1.5px no-repeat,linear-gradient(#00fff7,#00fff7) top left/1.5px 24px no-repeat,
+  linear-gradient(#00fff7,#00fff7) top right/24px 1.5px no-repeat,linear-gradient(#00fff7,#00fff7) top right/1.5px 24px no-repeat,
+  linear-gradient(#00fff7,#00fff7) bottom left/24px 1.5px no-repeat,linear-gradient(#00fff7,#00fff7) bottom left/1.5px 24px no-repeat,
+  linear-gradient(#00fff7,#00fff7) bottom right/24px 1.5px no-repeat,linear-gradient(#00fff7,#00fff7) bottom right/1.5px 24px no-repeat}
+/* مرز قلمروها: همیشه کم‌رنگ، موقع لمس روشن */
+.tp{stroke-opacity:.2;stroke-width:1.6}
+.tp:hover{fill-opacity:.1;stroke-opacity:.85}
+.tp.z-danger{animation:dgr 3.2s ease-in-out infinite}
+@keyframes dgr{0%,100%{stroke-opacity:.16}50%{stroke-opacity:.6}}
+@keyframes brt{0%,100%{fill-opacity:0}50%{fill-opacity:.11}}
+#az .tp.on{fill:#00fff7;animation:adash 1.4s linear infinite,brt 2.4s ease-in-out infinite}
+/* پین‌ها */
+.ap .st{position:relative}
+.ap[data-z=danger] .st::before{content:"";position:absolute;inset:-5px;border-radius:50%;border:1.5px solid var(--zc);animation:pl 2.8s ease-out infinite;pointer-events:none}
+.ap.here .st::after,.ap.dest .st::after{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px dashed #00fff7;animation:spin 7s linear infinite;pointer-events:none}
+.ap.dest .st::after{animation-duration:2.4s;border-color:#ffd166}
+.ap.on .st{animation:pop .35s cubic-bezier(.2,1.6,.4,1)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pop{from{transform:scale(.7)}to{transform:scale(1.2)}}
+/* مسیر و ETA */
+#rt0{animation:adash 1.1s linear infinite}
+.r0.pv{stroke:#ffd166;stroke-opacity:.85;stroke-dasharray:2 10;animation:adash 1s linear infinite}
+#eta{position:absolute;width:0;height:0;z-index:5;pointer-events:none;transform:scale(calc(1 / var(--s,1)));transform-origin:0 0}
+#eta span{position:absolute;left:0;top:0;transform:translate(-50%,16px);white-space:nowrap;padding:1px 9px;background:rgba(3,10,16,.92);border:1px solid #00fff7;color:#00fff7;font:700 11px/1.7 Orbitron,Vazirmatn,sans-serif;border-radius:2px;box-shadow:0 0 12px rgba(0,255,247,.4);direction:rtl}
+#eta.pv span{border-color:#ffd166;color:#ffd166;box-shadow:0 0 12px rgba(255,209,102,.35)}
+/* هدر و مینی‌مپ */
+.mhd{text-align:right}.mhd .sub{display:block;font-size:10px;line-height:1.4;color:var(--cy);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#mm{position:absolute;top:64px;right:12px;z-index:4;width:116px;height:78px;--ch:8px;--fill:rgba(3,8,12,.92);touch-action:none;cursor:pointer}
+#mm .mc{position:absolute;inset:3px;overflow:hidden;background:#02060a}
+#mm .mi{position:absolute;inset:0;background:var(--map) center/100% 100% no-repeat;opacity:.9}
+#mm .md{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:var(--zc);box-shadow:0 0 4px var(--zc)}
+#mm .md.on{width:8px;height:8px;margin:-4px 0 0 -4px;background:#00fff7;box-shadow:0 0 8px #00fff7}
+#mm .mme{position:absolute;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:#fff;border:1.5px solid #00fff7;animation:pl 2s ease-out infinite}
+#mm .mv{position:absolute;border:1.5px solid #00fff7;box-shadow:0 0 8px rgba(0,255,247,.6),0 0 0 200px rgba(2,6,10,.5)}
+/* ریل انتخاب سریع قلمرو */
+#rd .rail{position:relative;display:flex;gap:6px;overflow-x:auto;direction:ltr;padding:0 0 8px;scrollbar-width:none;overscroll-behavior:contain}
+#rd .rail::-webkit-scrollbar{display:none}
+#rd .rail button{--ch:6px;flex:none;display:flex;align-items:center;gap:6px;padding:3px 11px 3px 9px;font-size:11.5px;font-weight:700;--fill:rgba(6,10,15,.88);color:var(--tx);direction:rtl;line-height:1.8}
+#rd .rail button i{width:7px;height:7px;transform:rotate(45deg);background:var(--zc);box-shadow:0 0 6px var(--zc);flex:none}
+#rd .rail button b{font:700 10px/1 Orbitron,sans-serif;color:var(--mu)}
+#rd .rail button[aria-pressed=true]{--bd:var(--cy);color:var(--cy);--fill:#06242b}
+#rd .rail button[aria-pressed=true] b{color:var(--cy)}
 </style>
 </head>
 <body>
@@ -273,8 +322,9 @@ body.no3d .zc [data-act=ztilt],body.no3d .zc [data-act=zrot]{display:none}
   <div id="boot" style="position:absolute;inset:0;z-index:6;background:var(--bg);padding:14px"><div class="skel" style="height:360px"></div><div class="skel"></div><div class="skel"></div></div>
   <section class="view on" id="v-home"></section>
   <section class="view" id="v-map">
-    <div id="atlas"><div id="az"><img id="aimg" alt="نقشه‌ی جهان بازی" draggable="false"><svg id="aterr" viewBox="0 0 1536 1024"></svg><svg id="aroute" viewBox="0 0 1536 1024"></svg><div id="apins"></div><div id="me" hidden><i></i></div></div></div>
-    <div class="mhd pn"><b>اطلس جهان</b></div>
+    <div id="atlas"><div id="az"><img id="aimg" alt="نقشه‌ی جهان بازی" draggable="false"><canvas id="afx"></canvas><svg id="aterr" viewBox="0 0 1536 1024"></svg><svg id="aroute" viewBox="0 0 1536 1024"></svg><div id="apins"></div><div id="eta" hidden><span></span></div><div id="me" hidden><i></i></div></div></div>
+    <div class="mhd pn"><b>اطلس جهان</b><span class="sub" id="mhs"></span></div>
+    <div id="mm" class="pn" aria-label="مینی‌مپ"><div class="mc"><div class="mi"></div><div id="mmd"></div><i class="mme" id="mme" hidden></i><div class="mv" id="mmv"></div></div></div>
     <div class="zc"><button class="pn" data-act="zin" aria-label="بزرگ‌نمایی"><svg class="i"><use href="#i-plus"/></svg></button><button class="pn" data-act="zout" aria-label="کوچک‌نمایی"><svg class="i"><use href="#i-minus"/></svg></button><button class="pn" data-act="zhere" aria-label="موقعیت من"><svg class="i"><use href="#i-reset"/></svg></button><button class="pn" data-act="zlayer" aria-label="مرز قلمروها"><svg class="i"><use href="#i-atlas"/></svg></button></div>
     <div id="rd"></div>
   </section>
@@ -827,7 +877,7 @@ function atApply() {
   const s = ATL.s = Math.max(ATL.min, Math.min(ATL.max, ATL.s)), w = IW * s, h = IH * s;
   ATL.x = w > ATL.cw ? Math.max(ATL.cw - w, Math.min(0, ATL.x)) : (ATL.cw - w) / 2;
   ATL.y = h > ATL.ch ? Math.max(ATL.ch - h, Math.min(0, ATL.y)) : (ATL.ch - h) / 2;
-  const z = $("#az"); z.style.transform = `translate(${ATL.x}px,${ATL.y}px) scale(${s})`; z.style.setProperty("--s", s); z.classList.toggle("lb", s >= .36);
+  const z = $("#az"); z.style.transform = `translate(${ATL.x}px,${ATL.y}px) scale(${s})`; z.style.setProperty("--s", s); z.classList.toggle("lb", s >= .36); fxPlace(); mmUpdate();
 }
 function atFly(key, s2) {
   const p = HS[key] || [768, 512], s1 = ATL.s, x1 = ATL.x, y1 = ATL.y, s = Math.max(ATL.min, Math.min(ATL.max, s2 || s1)), x2 = ATL.cw / 2 - p[0] * s, y2 = ATL.ch * .4 - p[1] * s, t0 = performance.now();
@@ -838,7 +888,8 @@ function atFly(key, s2) {
 function fitMap() {
   const r = $("#atlas").getBoundingClientRect(); if (!r.width) return;
   ATL.cw = r.width; ATL.ch = r.height; ATL.cov = Math.max(ATL.cw / IW, ATL.ch / IH); ATL.min = Math.min(ATL.cw / IW, ATL.ch / IH) * .98; ATL.max = Math.max(ATL.cov * 3.2, 1.4);
-  if (!ATL.ready) { ATL.ready = true; ATL.s = ATL.min; ATL.x = ATL.y = 0; atApply(); atFly((S && S.map) || sel, ATL.cov * 1.15); } else atApply();
+  if (!ATL.ready) { ATL.ready = true; $("#az").classList.add("rvl"); setTimeout(() => $("#az").classList.remove("rvl"), 1800); ATL.s = ATL.min; ATL.x = ATL.y = 0; atApply(); atFly((S && S.map) || sel, ATL.cov * 1.15); } else atApply();
+  fxResize();
 }
 function zoomAt(f, cx, cy) { cancelAnimationFrame(ATL.raf); const s2 = Math.max(ATL.min, Math.min(ATL.max, ATL.s * f)), r = s2 / ATL.s; ATL.x = cx - (cx - ATL.x) * r; ATL.y = cy - (cy - ATL.y) * r; ATL.s = s2; atApply(); }
 function atInertia(vx, vy) { const f = () => { vx *= .94; vy *= .94; ATL.x += vx; ATL.y += vy; atApply(); if (Math.abs(vx) + Math.abs(vy) > .6) ATL.raf = requestAnimationFrame(f); }; ATL.raf = requestAnimationFrame(f); }
@@ -857,40 +908,62 @@ function atInertia(vx, vy) { const f = () => { vx *= .94; vy *= .94; ATL.x += vx
   box.addEventListener("wheel", e => { e.preventDefault(); const r = box.getBoundingClientRect(); zoomAt(e.deltaY < 0 ? 1.15 : .87, e.clientX - r.left, e.clientY - r.top); }, {passive: false});
 })();
 function buildMap() {
-  $("#apins").innerHTML = R.filter(d => HS[d.key]).map(d => `<button class="ap" data-act="msel" data-k="${esc(d.key)}" aria-label="${esc(faName(d))}" style="left:${HS[d.key][0]}px;top:${HS[d.key][1]}px;--zc:${ZCOL[d.zone] || "#7F9DB5"}"><span class="st">${fa(PNUM[d.key])}</span><em>${esc(faName(d))}</em></button>`).join("");
+  $("#apins").innerHTML = R.filter(d => HS[d.key]).map(d => `<button class="ap" data-act="msel" data-k="${esc(d.key)}" aria-label="${esc(faName(d))}" data-z="${esc(d.zone)}" style="left:${HS[d.key][0]}px;top:${HS[d.key][1]}px;--zc:${ZCOL[d.zone] || "#7F9DB5"}"><span class="st">${fa(PNUM[d.key])}</span><em>${esc(faName(d))}</em></button>`).join("");
+  $("#mmd").innerHTML = R.filter(d => HS[d.key]).map(d => `<i class="md" data-k="${esc(d.key)}" style="left:${HS[d.key][0] / IW * 100}%;top:${HS[d.key][1] / IH * 100}%;--zc:${ZCOL[d.zone] || "#7F9DB5"}"></i>`).join("");
 }
 function drawTerr() {
   const sp = k => "M" + TERR[k].map(p => p.join(",")).join("L") + "Z";
   const dim = ATL.focus && sel && TERR[sel] ? `<path class="dim" d="M0,0H${IW}V${IH}H0Z${sp(sel)}"/>` : "";
-  $("#aterr").innerHTML = dim + R.filter(d => TERR[d.key]).map(d => `<path class="tp${d.key === sel ? " on" : ""}" data-act="msel" data-k="${esc(d.key)}" d="${sp(d.key)}" style="--zc:${ZCOL[d.zone] || "#7F9DB5"}"/>`).join("");
+  $("#aterr").innerHTML = dim + R.filter(d => TERR[d.key]).map(d => `<path class="tp z-${esc(d.zone)}${d.key === sel ? " on" : ""}" data-act="msel" data-k="${esc(d.key)}" d="${sp(d.key)}" style="--zc:${ZCOL[d.zone] || "#7F9DB5"}"/>`).join("");
 }
-function routeGeo() {
-  const a = S && HS[S.map], b = S && S.traveling && HS[S.traveling]; if (!a || !b) return null;
+function routeBetween(a, b) {
+  if (!a || !b) return null;
   const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, o = Math.min(L * .22, 140);
   return `M${a[0]},${a[1]}Q${(a[0] + b[0]) / 2 - dy / L * o},${(a[1] + b[1]) / 2 + dx / L * o} ${b[0]},${b[1]}`;
 }
-function drawRoute() { const d = routeGeo(); $("#aroute").innerHTML = d ? `<path id="rt0" class="r0" d="${d}"/><path id="rt1" class="r1" d="${d}" pathLength="100" stroke-dasharray="0 100"/>` : ""; }
+function routeGeo() { return routeBetween(S && HS[S.map], S && S.traveling && HS[S.traveling]); }
+function drawRoute() {
+  const d = routeGeo(); let h = "";
+  if (d) h = `<path id="rt0" class="r0" d="${d}"/><path id="rt1" class="r1" d="${d}" pathLength="100" stroke-dasharray="0 100"/>`;
+  else if (S && S.map && sel && sel !== S.map && HS[sel] && HS[S.map]) h = `<path id="rtp" class="r0 pv" d="${routeBetween(HS[S.map], HS[sel])}"/>`;
+  $("#aroute").innerHTML = h;
+}
 function placeMe() {
-  const me = $("#me"), cur = S && HS[S.map]; if (!cur) { me.hidden = true; return; }
+  const me = $("#me"), cur = S && HS[S.map], eta = $("#eta"), mme = $("#mme"); if (!cur) { me.hidden = true; eta.hidden = true; mme.hidden = true; return; }
   me.hidden = false; if (!me._av) { me._av = 1; try { me.style.setProperty("--av", `url(${AS("avatar_" + genderKey() + ".webp")})`); } catch (_) {} }
-  let x = cur[0], y = cur[1]; const rt = $("#rt0");
-  if (rt) { const p = Math.max(0, Math.min(1, S.travel_total ? 1 - (S.travel_left - (Date.now() - S._at) / 1000) / S.travel_total : 0)), pt = rt.getPointAtLength(rt.getTotalLength() * p); x = pt.x; y = pt.y; const r1 = $("#rt1"); if (r1) r1.setAttribute("stroke-dasharray", p * 100 + " 100"); }
+  let x = cur[0], y = cur[1], et = "", ex = 0, ey = 0, pv = false; const rt = $("#rt0");
+  if (rt) {
+    const p = Math.max(0, Math.min(1, S.travel_total ? 1 - (S.travel_left - (Date.now() - S._at) / 1000) / S.travel_total : 0)), pt = rt.getPointAtLength(rt.getTotalLength() * p); x = pt.x; y = pt.y;
+    const r1 = $("#rt1"); if (r1) r1.setAttribute("stroke-dasharray", p * 100 + " 100");
+    et = clock(Math.max(0, (S.travel_left || 0) - (Date.now() - S._at) / 1000)); ex = x; ey = y;
+  } else {
+    const rp = $("#rtp"), d = sel && realm(sel);
+    if (rp && d) { const pt = rp.getPointAtLength(rp.getTotalLength() / 2); ex = pt.x; ey = pt.y; et = dur(d.secs); pv = true; }
+  }
   me.style.left = x + "px"; me.style.top = y + "px";
+  mme.hidden = false; mme.style.left = x / IW * 100 + "%"; mme.style.top = y / IH * 100 + "%";
+  eta.hidden = !et; if (et) { eta.style.left = ex + "px"; eta.style.top = ey + "px"; eta.classList.toggle("pv", pv); eta.firstChild.textContent = et; }
 }
 function atlasTick() { ATL.loop = 0; if (view !== "map" || !S || !S.traveling) return; placeMe(); ATL.loop = requestAnimationFrame(atlasTick); }
 function markMap() {
   $$(".ap").forEach(m => { const k = m.dataset.k; m.classList.toggle("on", k === sel); m.classList.toggle("here", !!S && k === S.map && !S.traveling); m.classList.toggle("dest", !!S && k === S.traveling); });
   $("#az").classList.toggle("tl", ATL.terr); drawTerr(); drawRoute(); placeMe();
+  $$("#mmd i").forEach(i => i.classList.toggle("on", i.dataset.k === sel));
+  { const cr = S && S.map && realm(S.map), ds = S && S.traveling && realm(S.traveling), h = $("#mhs"); if (h) h.textContent = ds ? "در مسیر: " + faName(ds) : cr ? "اینجا: " + faName(cr) : ""; }
   if (view === "map" && S && S.traveling && !ATL.loop) ATL.loop = requestAnimationFrame(atlasTick);
 }
-function enterAtlas() { fitMap(); markMap(); }
-function atlasStop() { cancelAnimationFrame(ATL.loop); ATL.loop = 0; }
+function enterAtlas() { fitMap(); markMap(); fxStart(); }
+function atlasStop() { cancelAnimationFrame(ATL.loop); ATL.loop = 0; fxStop(); }
 function startAtlas() { if (view === "map") enterAtlas(); }
 function renderDock() {
   const d = sel && realm(sel), el = $("#rd"); if (!d) { el.innerHTML = ""; return; }
   const here = S.map === d.key, trav = S.traveling, noAct = S.actions <= 0;
-  el.innerHTML = `<div class="pn gl row"><div class="top"><div><h2 style="font-size:17px">${esc(faName(d))}</h2><span class="en">${esc(d.key)}</span></div><div class="chips">${zchip(d.zone)}${tchip(d.tier)}<span class="chip cy">${here ? "همین‌جایی" : dur(d.secs)}</span></div></div>
+  const oldRail = el.querySelector(".rail"), keep = oldRail ? oldRail.scrollLeft : null;
+  const rail = `<div class="rail">${R.filter(x => HS[x.key]).map(x => `<button class="pn" data-act="rsel" data-k="${esc(x.key)}" aria-pressed="${x.key === sel}" style="--zc:${ZCOL[x.zone] || "#7F9DB5"}"><i></i><b>${fa(PNUM[x.key])}</b>${esc(faName(x))}</button>`).join("")}</div>`;
+  el.innerHTML = rail + `<div class="pn gl row"><div class="top"><div><h2 style="font-size:17px">${esc(faName(d))}</h2><span class="en">${esc(d.key)}</span></div><div class="chips">${zchip(d.zone)}${tchip(d.tier)}<span class="chip cy">${here ? "همین‌جایی" : dur(d.secs)}</span></div></div>
     <div class="duo" style="margin:0"><button class="btn pn" data-act="rdet">جزئیات</button>${here ? `<button class="btn main pn" data-go="trip">جستجو</button>` : `<button class="btn main pn" data-act="go" data-k="${esc(d.key)}" ${trav || noAct ? "disabled" : ""}>${trav ? "در حال سفر" : noAct ? "اقدامی نمانده" : "سفر"}</button>`}</div></div>`;
+  const rl = el.querySelector(".rail"), ac = rl && rl.querySelector("[aria-pressed=true]");
+  if (rl) { if (keep != null) rl.scrollLeft = keep; if (ac) { const tg2 = ac.offsetLeft - (rl.clientWidth - ac.offsetWidth) / 2; try { rl.scrollTo({left: tg2, behavior: keep == null ? "auto" : "smooth"}); } catch (_) { rl.scrollLeft = tg2; } } }
 }
 function realmPanel(d) {
   if (!d) return `<div class="empty">قلمرویی انتخاب نشده.</div>`;
@@ -958,6 +1031,7 @@ document.addEventListener("click", e => {
   const a = e.target.closest("[data-act]"); if (!a || a.disabled) return; const d = a.dataset;
   switch (d.act) {
     case "msel": hap(); if (sel === d.k && ATL.focus) ATL.focus = false; else { sel = d.k; ATL.focus = true; } markMap(); renderDock(); atFly(sel, Math.max(ATL.s, ATL.cov * 1.35)); break;
+    case "rsel": hap(); sel = d.k; ATL.focus = true; markMap(); renderDock(); atFly(sel, Math.max(ATL.s, ATL.cov * 1.35)); break;
     case "zin": zoomAt(1.4, ATL.cw / 2, ATL.ch / 2); break;
     case "zout": zoomAt(.71, ATL.cw / 2, ATL.ch / 2); break;
     case "zhere": atFly(S.map || sel, Math.max(ATL.s, ATL.cov * 1.4)); break;
@@ -995,6 +1069,163 @@ async function boot() {
     $("#boot").innerHTML = `<div class="empty"><b>${esc(e.message)}</b>مینی‌اپ رو از داخل ربات باز کن.<br><button class="btn pn" style="margin-top:14px" onclick="location.reload()">تلاش دوباره</button></div>`;
   }
 }
+
+/* ───────── اطلس خفن: افکت‌های زنده‌ی قلمروها + مینی‌مپ ───────── */
+const FXD = {
+  "Frostheim": {k: "snow", n: 18, c: "225,242,255"},
+  "Sands of Eternity": {k: "sand", n: 16, c: "255,205,120"},
+  "Holy Luminarchy": {k: "rise", n: 16, c: "255,232,140"},
+  "Celestial Spire": {k: "twinkle", n: 18, c: "190,225,255"},
+  "Dreadgate Citadel": {k: "ember", n: 16, c: "255,105,45"},
+  "Abyssal Black Market": {k: "lantern", n: 12, c: "255,170,70"},
+  "Voidbreak Wastes": {k: "vortex", n: 24, c: "190,115,255", cx: 918, cy: 384},
+  "Azure Tides Empire": {k: "glint", n: 16, c: "205,238,255"},
+  "Stormward Archipelago": {k: "rain", n: 24, c: "190,215,255", bolt: 1},
+  "The Sunken City": {k: "bubble", n: 16, c: "140,255,235"},
+  "Verdant Vale": {k: "firefly", n: 16, c: "205,255,120"},
+  "Emberhollow": {k: "ember", n: 18, c: "255,140,40"},
+  "Dragonnest Peaks": {k: "dust", n: 14, c: "255,225,170"},
+  "Clockwork Depths": {k: "spark", n: 12, c: "255,185,80"},
+  "Ruins of Orion-7": {k: "rise", n: 14, c: "90,170,255"},
+  "Throne of Oblivion": {k: "ash", n: 16, c: "215,210,205"}
+};
+const FXG = [
+  {k: "Voidbreak Wastes", x: 918, y: 384, r: 75, c: "175,90,255", sp: 1.4},
+  {k: "Ruins of Orion-7", x: 520, y: 885, r: 62, c: "70,160,255", sp: 2.2},
+  {k: "Holy Luminarchy", x: 940, y: 140, r: 95, c: "255,225,130", sp: .8},
+  {k: "Emberhollow", x: 900, y: 620, r: 110, c: "255,110,40", sp: 1.1},
+  {k: "Dreadgate Citadel", x: 190, y: 400, r: 90, c: "255,80,40", sp: 1.3}
+];
+const FX = {cv: null, cx: null, P: [], B: {}, raf: 0, last: 0, dpr: 1, spr: {}, bolt: {}, off: false};
+const rnd = (a, b) => a + Math.random() * (b - a);
+function fxBB(k) { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; TERR[k].forEach(([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }); return {x0, y0, x1, y1, w: x1 - x0, h: y1 - y0, v: true}; }
+function fxSpawn(p, init) {
+  const d = p.d, b = p.b; p.life = init ? rnd(0, 3) : 0; p.ph = rnd(0, 6.283); p.sz = rnd(1.2, 2.8); p.c = d.c; p.vx = p.vy = 0; p.max = 1e9;
+  const rx = () => rnd(b.x0 + 6, b.x1 - 6), ry = () => rnd(b.y0 + 6, b.y1 - 6);
+  switch (d.k) {
+    case "snow": p.max = 99; p.x = rx(); p.y = init ? ry() : b.y0; p.vy = rnd(14, 30); p.sz = rnd(1.4, 3.2); break;
+    case "ash": p.max = 99; p.x = rx(); p.y = init ? ry() : b.y0; p.vy = rnd(8, 18); p.sz = rnd(1.2, 2.6); if (Math.random() < .25) p.c = "255,95,60"; break;
+    case "sand": p.max = 99; p.x = init ? rx() : b.x0; p.y = ry(); p.vx = rnd(50, 110); p.sz = rnd(1, 2); break;
+    case "rise": p.max = rnd(4, 8); p.x = rx(); p.y = rnd(b.y0 + b.h * .45, b.y1); p.vy = -rnd(8, 20); p.sz = rnd(1.5, 3.4); break;
+    case "ember": p.max = rnd(2.5, 5); p.x = rx(); p.y = rnd(b.y0 + b.h * .5, b.y1); p.vy = -rnd(20, 44); p.sz = rnd(1.2, 2.8); break;
+    case "twinkle": p.max = rnd(2.5, 6); p.x = rx(); p.y = ry(); p.sz = rnd(1, 2.6); break;
+    case "glint": p.max = rnd(1, 2.4); p.x = rx(); p.y = ry(); p.sz = rnd(1, 2.4); break;
+    case "lantern": p.x = rx(); p.y = ry(); p.sz = rnd(2.5, 4.5); break;
+    case "vortex": p.a = rnd(0, 6.283); p.r = init ? rnd(10, 150) : rnd(110, 160); p.sz = rnd(1.2, 2.6); break;
+    case "bubble": p.max = rnd(5, 9); p.x = rx(); p.y = rnd(b.y0 + b.h * .5, b.y1); p.vy = -rnd(10, 22); p.sz = rnd(1.6, 3.6); break;
+    case "firefly": p.x = rx(); p.y = ry(); p.sz = rnd(1.8, 3.2); break;
+    case "dust": p.x = rx(); p.y = ry(); p.vx = rnd(6, 16); p.vy = rnd(-3, 3); p.sz = rnd(1, 2.2); break;
+    case "spark": p.max = rnd(.7, 1.4); p.life = -rnd(0, 3); p.x = rnd(b.x0 + b.w * .1, b.x1 - b.w * .1); p.y = rnd(b.y0 + b.h * .45, b.y1 - 10); p.vx = rnd(-30, 30); p.vy = -rnd(40, 90); p.sz = rnd(1, 1.8); break;
+    case "rain": p.max = 99; p.x = rnd(b.x0, b.x1 + 40); p.y = init ? ry() : b.y0; p.vx = -45; p.vy = rnd(240, 340); p.sz = rnd(.8, 1.4); break;
+  }
+}
+function fxStep(p, dt, T) {
+  const d = p.d, b = p.b; p.life += dt;
+  switch (d.k) {
+    case "snow": case "ash": p.y += p.vy * dt; p.x += Math.sin(T * .9 + p.ph) * (d.k === "ash" ? 14 : 9) * dt; if (p.y > b.y1) fxSpawn(p); break;
+    case "sand": p.x += p.vx * dt; p.y += Math.sin(T * 1.3 + p.ph) * 14 * dt; if (p.x > b.x1) fxSpawn(p); break;
+    case "rise": case "ember": case "bubble": p.y += p.vy * dt; p.x += Math.sin(T * 1.6 + p.ph) * (d.k === "bubble" ? 9 : 12) * dt; if (p.life > p.max) fxSpawn(p); break;
+    case "twinkle": case "glint": if (p.life > p.max) fxSpawn(p); break;
+    case "vortex": p.r -= (14 + (160 - p.r) * .12) * dt; p.a += (1.1 + 70 / (p.r + 20)) * dt; p.x = d.cx + Math.cos(p.a) * p.r; p.y = d.cy + Math.sin(p.a) * p.r * .55; if (p.r < 6) fxSpawn(p); break;
+    case "firefly":
+      p.vx += (Math.sin(T * .7 + p.ph) * 10 - p.vx) * dt; p.vy += (Math.cos(T * .6 + p.ph * 1.3) * 10 - p.vy) * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.x < b.x0 || p.x > b.x1) { p.vx = -p.vx; p.x = Math.max(b.x0, Math.min(b.x1, p.x)); } if (p.y < b.y0 || p.y > b.y1) { p.vy = -p.vy; p.y = Math.max(b.y0, Math.min(b.y1, p.y)); } break;
+    case "dust": p.x += p.vx * dt; p.y += (p.vy + Math.sin(T * .5 + p.ph) * 4) * dt; if (p.x > b.x1) p.x = b.x0; break;
+    case "spark": if (p.life < 0) return; p.vy += 110 * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.life > p.max) fxSpawn(p); break;
+    case "rain": p.x += p.vx * dt; p.y += p.vy * dt; if (p.y > b.y1) fxSpawn(p); break;
+  }
+}
+function fxAlpha(p, T) {
+  const u = p.life / p.max;
+  switch (p.d.k) {
+    case "snow": case "ash": return .8;
+    case "sand": return .38;
+    case "dust": return .35;
+    case "rain": return .26;
+    case "lantern": return Math.max(.12, .45 + .3 * Math.sin(T * 2.1 + p.ph) * Math.sin(T * 5.7 + p.ph * 3));
+    case "vortex": return Math.max(0, Math.min(1, (160 - p.r) / 60) * Math.min(1, p.r / 14) * .95);
+    case "firefly": return Math.pow(.5 + .5 * Math.sin(T * 1.7 + p.ph), 2) * .95;
+    default: return p.life < 0 ? 0 : Math.sin(Math.PI * Math.min(1, u)) * .9;
+  }
+}
+function fxSprite(rgb) {
+  if (FX.spr[rgb]) return FX.spr[rgb];
+  const c = document.createElement("canvas"); c.width = c.height = 64; const g = c.getContext("2d"), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, `rgba(${rgb},1)`); r.addColorStop(.25, `rgba(${rgb},.55)`); r.addColorStop(1, `rgba(${rgb},0)`); g.fillStyle = r; g.fillRect(0, 0, 64, 64);
+  return FX.spr[rgb] = c;
+}
+function fxBolt(key, b, T, c, s, ox, oy, dpr) {
+  const st = FX.bolt[key] || (FX.bolt[key] = {next: T + rnd(1.5, 4), end: 0, t0: 0, pts: []});
+  if (T > st.next) {
+    let x = rnd(b.x0 + b.w * .2, b.x1 - b.w * .2), y = b.y0 + 10; st.pts = [[x, y]];
+    const ye = b.y0 + b.h * rnd(.45, .7); while (y < ye) { y += rnd(14, 26); x += rnd(-16, 16); st.pts.push([x, y]); }
+    st.t0 = T; st.end = T + .24; st.next = T + rnd(3.5, 8);
+  }
+  if (T >= st.end) return;
+  const u = 1 - (T - st.t0) / .24, fl = (Math.sin((T - st.t0) * 60) > -.2 ? 1 : .35) * u;
+  c.save(); c.globalAlpha = fl; c.strokeStyle = "rgb(215,232,255)"; c.lineWidth = Math.max(1.5, 2.2 * s) * dpr; c.lineJoin = "round"; c.shadowColor = "rgb(150,190,255)"; c.shadowBlur = 14 * dpr;
+  c.beginPath(); st.pts.forEach(([x, y], i) => { const X = (x * s + ox) * dpr, Y = (y * s + oy) * dpr; i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.stroke();
+  c.shadowBlur = 0; c.globalAlpha = .14 * u; c.fillStyle = "rgb(170,200,255)"; c.beginPath();
+  TERR[key].forEach(([x, y], i) => { const X = (x * s + ox) * dpr, Y = (y * s + oy) * dpr; i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.closePath(); c.fill(); c.restore();
+}
+function fxFrame(t) {
+  FX.raf = 0; if (view !== "map" || document.hidden || !FX.cx || !ATL.cw) return;
+  const dt = Math.min(.05, (t - FX.last) / 1000 || .016); FX.last = t;
+  const T = t / 1000, c = FX.cx, dpr = FX.dpr, s = ATL.s, ox = ATL.x, oy = ATL.y, k = Math.max(.8, Math.min(2.4, s * 1.3));
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, FX.cv.width, FX.cv.height); c.globalCompositeOperation = "lighter";
+  for (const key in FX.B) { const b = FX.B[key]; b.v = b.x1 * s + ox > 0 && b.x0 * s + ox < ATL.cw && b.y1 * s + oy > 0 && b.y0 * s + oy < ATL.ch; }
+  for (const g of FXG) {
+    if (!FX.B[g.k] || !FX.B[g.k].v) continue; const R2 = g.r * s * dpr;
+    c.globalAlpha = .26 + .2 * Math.sin(T * g.sp); c.drawImage(fxSprite(g.c), (g.x * s + ox) * dpr - R2, (g.y * s + oy) * dpr - R2, R2 * 2, R2 * 2);
+  }
+  for (const p of FX.P) {
+    if (!p.b.v) continue; fxStep(p, dt, T);
+    const a = fxAlpha(p, T); if (a <= .01) continue;
+    const X = (p.x * s + ox) * dpr, Y = (p.y * s + oy) * dpr, r = p.sz * k * dpr, kk = p.d.k; c.globalAlpha = a;
+    if (kk === "rain" || kk === "spark" || kk === "sand") {
+      const f = kk === "rain" ? .045 : kk === "sand" ? .06 : .05; c.strokeStyle = `rgb(${p.c})`; c.lineWidth = Math.max(1, p.sz * k * .55) * dpr;
+      c.beginPath(); c.moveTo(X, Y); c.lineTo(X - p.vx * f * s * dpr, Y - p.vy * f * s * dpr); c.stroke();
+    } else if (kk === "bubble") {
+      c.strokeStyle = `rgb(${p.c})`; c.lineWidth = dpr; c.beginPath(); c.arc(X, Y, r * 1.4, 0, 6.283); c.stroke();
+    } else if (kk === "twinkle" && p.sz > 2) {
+      c.drawImage(fxSprite(p.c), X - r * 3, Y - r * 3, r * 6, r * 6); c.strokeStyle = `rgb(${p.c})`; c.lineWidth = dpr; c.beginPath(); c.moveTo(X - r * 3, Y); c.lineTo(X + r * 3, Y); c.moveTo(X, Y - r * 3); c.lineTo(X, Y + r * 3); c.stroke();
+    } else { const m = kk === "lantern" ? 6 : kk === "firefly" ? 5 : 3.4; c.drawImage(fxSprite(p.c), X - r * m, Y - r * m, r * m * 2, r * m * 2); }
+  }
+  c.globalAlpha = 1;
+  for (const key in FX.B) { if (FXD[key].bolt && FX.B[key].v) fxBolt(key, FX.B[key], T, c, s, ox, oy, dpr); }
+  FX.raf = requestAnimationFrame(fxFrame);
+}
+function fxPlace() { if (FX.cv) FX.cv.style.transform = `translate(${-ATL.x / ATL.s}px,${-ATL.y / ATL.s}px) scale(${1 / ATL.s})`; }
+function fxResize() {
+  if (!FX.cv || !ATL.cw) return; FX.dpr = Math.min(2, devicePixelRatio || 1);
+  FX.cv.width = Math.round(ATL.cw * FX.dpr); FX.cv.height = Math.round(ATL.ch * FX.dpr); FX.cv.style.width = ATL.cw + "px"; FX.cv.style.height = ATL.ch + "px"; fxPlace();
+}
+function fxStart() { if (FX.off || FX.raf || !FX.cx) return; FX.last = performance.now(); FX.raf = requestAnimationFrame(fxFrame); }
+function fxStop() { cancelAnimationFrame(FX.raf); FX.raf = 0; }
+(function fxInit() {
+  const cv = $("#afx"); if (!cv) return;
+  try { FX.off = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (_) {}
+  FX.cv = cv; FX.cx = cv.getContext("2d"); const low = (navigator.hardwareConcurrency || 8) <= 4 ? .6 : 1;
+  for (const key in FXD) {
+    if (!TERR[key]) continue; const b = FX.B[key] = fxBB(key), d = FXD[key], n = Math.round(d.n * low);
+    for (let i = 0; i < n; i++) { const p = {d, b}; fxSpawn(p, true); FX.P.push(p); }
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && view === "map") fxStart(); });
+})();
+/* مینی‌مپ */
+function mmUpdate() {
+  const mv = $("#mmv"); if (!mv || !ATL.cw) return; const s = ATL.s;
+  const x0 = Math.max(0, -ATL.x / s), y0 = Math.max(0, -ATL.y / s), x1 = Math.min(IW, (ATL.cw - ATL.x) / s), y1 = Math.min(IH, (ATL.ch - ATL.y) / s);
+  mv.style.left = x0 / IW * 100 + "%"; mv.style.top = y0 / IH * 100 + "%"; mv.style.width = Math.max(1, (x1 - x0) / IW * 100) + "%"; mv.style.height = Math.max(1, (y1 - y0) / IH * 100) + "%";
+}
+(() => {
+  const mm = $("#mm"); if (!mm) return; let dn = false;
+  const go = e => { const r = $(".mc", mm).getBoundingClientRect(), mx = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * IW, my = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)) * IH; cancelAnimationFrame(ATL.raf); ATL.x = ATL.cw / 2 - mx * ATL.s; ATL.y = ATL.ch / 2 - my * ATL.s; atApply(); };
+  mm.addEventListener("pointerdown", e => { dn = true; try { mm.setPointerCapture(e.pointerId); } catch (_) {} hap(); go(e); e.stopPropagation(); });
+  mm.addEventListener("pointermove", e => { if (dn) go(e); });
+  ["pointerup", "pointercancel"].forEach(n => mm.addEventListener(n, () => { dn = false; }));
+})();
+
 renderHUD(); boot();
 </script>
 </body>
