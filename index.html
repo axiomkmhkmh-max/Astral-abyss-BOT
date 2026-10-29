@@ -234,7 +234,7 @@ body.no3d .zc [data-act=ztilt],body.no3d .zc [data-act=zrot]{display:none}
 .zc button.on{--bd:var(--cy);color:var(--cy)}
 
 /* ═════════ اطلس خفن: افکت‌های زنده، مینی‌مپ، ریل قلمروها، پیش‌نمایش مسیر ═════════ */
-#afx{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none}
+#afx{display:none;position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none}
 #atlas::before{content:"";position:absolute;inset:6px;z-index:3;pointer-events:none;opacity:.55;
   background:
   linear-gradient(#00fff7,#00fff7) top left/24px 1.5px no-repeat,linear-gradient(#00fff7,#00fff7) top left/1.5px 24px no-repeat,
@@ -245,13 +245,12 @@ body.no3d .zc [data-act=ztilt],body.no3d .zc [data-act=zrot]{display:none}
 .tp{stroke-opacity:.2;stroke-width:1.6}
 .tp:hover{fill-opacity:.1;stroke-opacity:.85}
 .tp.z-danger{stroke-opacity:.4}
-#az .tp.on{fill:#00fff7;fill-opacity:.05;filter:none}
+#az .tp.on{fill:#00fff7;fill-opacity:.05;filter:none;animation:none}
 /* پین‌ها */
 .ap .st{position:relative}
 .ap[data-z=danger] .st::before{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--zc);opacity:.6;pointer-events:none}
-.ap.here .st::after,.ap.dest .st::after{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px dashed #00fff7;animation:spin 7s linear infinite;pointer-events:none}
-.ap.dest .st::after{animation-duration:2.4s;border-color:#ffd166}
-.ap.on .st{animation:pop .35s cubic-bezier(.2,1.6,.4,1)}
+.ap.here .st::after,.ap.dest .st::after{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px dashed #00fff7;pointer-events:none}
+.ap.dest .st::after{border-color:#ffd166}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pop{from{transform:scale(.7)}to{transform:scale(1.2)}}
 /* مسیر و ETA */
@@ -263,10 +262,10 @@ body.no3d .zc [data-act=ztilt],body.no3d .zc [data-act=zrot]{display:none}
 .mhd{text-align:right}.mhd .sub{display:block;font-size:10px;line-height:1.4;color:var(--cy);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #mm{position:absolute;top:64px;right:12px;z-index:4;width:116px;height:78px;--ch:8px;--fill:rgba(3,8,12,.92);touch-action:none;cursor:pointer}
 #mm .mc{position:absolute;inset:3px;overflow:hidden;background:#02060a}
-#mm .mi{position:absolute;inset:0;background:var(--map) center/100% 100% no-repeat;opacity:.9}
+#mm .mi{position:absolute;inset:0;opacity:.9}#mm .mi img{width:100%;height:100%;display:block}
 #mm .md{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:var(--zc);box-shadow:0 0 4px var(--zc)}
 #mm .md.on{width:8px;height:8px;margin:-4px 0 0 -4px;background:#00fff7;box-shadow:0 0 8px #00fff7}
-#mm .mme{position:absolute;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:#fff;border:1.5px solid #00fff7;animation:pl 2s ease-out infinite}
+#mm .mme{position:absolute;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:#fff;border:1.5px solid #00fff7;}
 #mm .mv{position:absolute;border:1.5px solid #00fff7;background:rgba(0,255,247,.14)}
 /* ریل انتخاب سریع قلمرو */
 #rd .rail{position:relative;display:flex;gap:6px;overflow-x:auto;direction:ltr;padding:0 0 8px;scrollbar-width:none;overscroll-behavior:contain}
@@ -1200,7 +1199,7 @@ function fxStart() { if (FX.off || FX.raf || !FX.cx) return; FX.last = performan
 function fxStop() { cancelAnimationFrame(FX.raf); FX.raf = 0; }
 (function fxInit() {
   const cv = $("#afx"); if (!cv) return;
-  try { FX.off = matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (_) {}
+  FX.off = true; /* افکت ذره‌ای پیش‌فرض خاموش؛ برای روشن کردن false بذار و display:none رو از #afx بردار */
   FX.cv = cv; FX.cx = cv.getContext("2d"); const low = (navigator.hardwareConcurrency || 8) <= 4 ? .4 : .6;
   for (const key in FXD) {
     if (!TERR[key]) continue; const b = FX.B[key] = fxBB(key), d = FXD[key], n = Math.round(d.n * low);
@@ -1215,7 +1214,7 @@ function mmUpdate() {
   mv.style.left = x0 / IW * 100 + "%"; mv.style.top = y0 / IH * 100 + "%"; mv.style.width = Math.max(1, (x1 - x0) / IW * 100) + "%"; mv.style.height = Math.max(1, (y1 - y0) / IH * 100) + "%";
 }
 (() => {
-  const mm = $("#mm"); if (!mm) return; let dn = false;
+  const mm = $("#mm"); if (!mm) return; let dn = false; { const im = document.createElement("img"); im.src = MAPSRC; im.alt = ""; im.draggable = false; $(".mi", mm).appendChild(im); }
   const go = e => { const r = $(".mc", mm).getBoundingClientRect(), mx = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * IW, my = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)) * IH; cancelAnimationFrame(ATL.raf); ATL.x = ATL.cw / 2 - mx * ATL.s; ATL.y = ATL.ch / 2 - my * ATL.s; atApply(); };
   mm.addEventListener("pointerdown", e => { dn = true; try { mm.setPointerCapture(e.pointerId); } catch (_) {} hap(); go(e); e.stopPropagation(); });
   mm.addEventListener("pointermove", e => { if (dn) go(e); });
