@@ -23,7 +23,7 @@
 #                           تعدادِ کلیدها)
 #    AI_MAX_ATTEMPTS      ← حداکثر تلاش برای هر سوال (پیش‌فرض ۴؛ هر تلاشِ
 #                           ناموفق از سهمیه‌ی رایگان کم می‌کنه!)
-#    AI_MAX_TOKENS        ← پیش‌فرض ۷۰۰ (مدل‌های reasoning با عددِ کم جواب خالی می‌دن)
+#    AI_MAX_TOKENS        ← پیش‌فرض ۱۸۰۰ (مدل‌های reasoning با عددِ کم جواب خالی می‌دن)
 #    AI_ENABLED           ← "0" یعنی خاموش
 # ============================================================
 from __future__ import annotations
@@ -77,7 +77,7 @@ def _cfg():
         "user_daily": _int_env("AI_USER_DAILY", 15),
         "global_daily": _int_env("AI_GLOBAL_DAILY", auto_global),
         "max_attempts": max(1, _int_env("AI_MAX_ATTEMPTS", 4)),
-        "max_tokens": max(200, _int_env("AI_MAX_TOKENS", 700)),
+        "max_tokens": max(200, _int_env("AI_MAX_TOKENS", 1800)),
     }
 
 
@@ -602,6 +602,8 @@ async def _route(c: dict, messages: list[dict]) -> tuple[Optional[str], list[str
                 return text, errors
             except Exception as e:  # noqa: BLE001
                 kind, secs = _classify(e)
+                if isinstance(e, _BadResponse) and getattr(e, "status_code", None) is None:
+                    kind, secs = "empty", 0  # جوابِ خالی = مشکلِ مدل، نه کلید
                 detail = f"{slot.name}: {kind} {getattr(e, 'status_code', '')} {type(e).__name__}: {str(e)[:200]}"
                 if kind == "bad_request" and sub == 0 and slot.provider == "openrouter" and any(
                         w in str(e).lower() for w in ("instruction", "system", "developer")):
@@ -611,7 +613,9 @@ async def _route(c: dict, messages: list[dict]) -> tuple[Optional[str], list[str
                 slot.last_error = detail
                 errors.append(detail)
                 log.warning("AI call failed: %s", detail)
-                if kind in ("daily", "auth", "policy"):
+                if kind == "empty":
+                    tried.discard((slot.provider, slot.key))  # همین کلید دوباره (با مدلِ دیگه) تلاش بشه
+                elif kind in ("daily", "auth", "policy"):
                     slot.dead_until = time.time() + secs
                 elif kind in ("minute", "transient"):
                     slot.cool_until = time.time() + secs
