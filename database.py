@@ -356,6 +356,7 @@ _NEW_FIELD_DEFAULTS = {
         ["weapon", "helmet", "armor", "gloves", "boots", "ring", "amulet", "relic"]},
     "ascensions_passed": lambda: [],
     "ascension_cooldowns": lambda: {},
+    "trial_battle": lambda: None,   # نبردِ Trialِ در جریان — trial_battle.py
     "titles_unlocked": lambda: [],
     "characters_seen": lambda: [],
     "epilogues_seen": lambda: [],
@@ -911,6 +912,7 @@ def _default_player_fields(user_id: int, username: str, name: str) -> dict:
             ["weapon", "helmet", "armor", "gloves", "boots", "ring", "amulet", "relic"]},
         "ascensions_passed": [],
         "ascension_cooldowns": {},
+        "trial_battle": None,
         "titles_unlocked": [],
         "characters_seen": [],
         "epilogues_seen": [],

@@ -30,6 +30,10 @@ async def cmd_academy(msg: Message):
     if not player or not player.get("class"):
         await msg.answer("❌ اول باید کاراکترت رو بسازی: /start")
         return
+    res = acs.pending_result(player)   # امتحانی که وقتش تموم شده رو تکلیفش رو روشن کن
+    if res is not None:
+        await asave_player(uid, player)
+        await msg.answer(res["text"])
     await msg.answer(acs.status_text(player), reply_markup=_main_kb(player))
 
 
@@ -58,14 +62,94 @@ async def cb_academy_class(cb: CallbackQuery):
         await cb.message.edit_text(acs.status_text(player), reply_markup=_main_kb(player))
 
 
+def _exam_kb(view: dict) -> InlineKeyboardMarkup:
+    sid, qi = view["sid"], view["qi"]
+    nums = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"]
+    row = [
+        InlineKeyboardButton(text=nums[n], callback_data=f"acx:{sid}:{qi}:{idx}", style=ButtonStyle.PRIMARY)
+        for n, (idx, _) in enumerate(view["options"])
+    ]
+    rows = [row[:2], row[2:]] if len(row) > 2 else [row]
+    if view["can_hint"]:
+        rows.append([InlineKeyboardButton(text=f"💡 راهنما ({view['hints']})", callback_data=f"acxh:{sid}:{qi}", style=ButtonStyle.SUCCESS)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def _render_exam(cb: CallbackQuery, player: dict):
+    """وضعیتِ فعلیِ امتحان (سؤال یا نتیجه) رو رندر می‌کنه."""
+    view = acs.exam_view(player)
+    if view["kind"] == "question":
+        await cb.message.edit_text(view["text"], reply_markup=_exam_kb(view))
+    elif view["kind"] == "result":
+        await cb.message.edit_text(view["text"] + "\n\n" + acs.status_text(player), reply_markup=_main_kb(player))
+    else:
+        await cb.message.edit_text(acs.status_text(player), reply_markup=_main_kb(player))
+
+
 @no_double_tap()
 async def cb_academy_exam(cb: CallbackQuery):
+    """دکمه‌ی «امتحان بده»: اگه امتحانِ نیمه‌کاره هست ادامه‌ش می‌ده، وگرنه صفحه‌ی توضیحِ امتحان رو نشون می‌ده."""
     uid = cb.from_user.id
     player = await aget_player(uid)
-    ok, text = acs.take_exam(player)
+    ok, err = acs.can_take_exam(player)
+    if not ok:
+        await cb.answer(err, show_alert=True)
+        return
+    await cb.answer()
+    if player.get("academy", {}).get("exam"):
+        await _render_exam(cb, player)
+        await asave_player(uid, player)
+        return
+    kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="✍️ شروعِ امتحان", callback_data="academy_exam_go", style=ButtonStyle.SUCCESS),
+        InlineKeyboardButton(text="⬅️ فعلاً نه", callback_data="academy_back", style=ButtonStyle.DANGER),
+    ]])
+    await cb.message.edit_text(acs.exam_intro_text(player), reply_markup=kb)
+
+
+@no_double_tap()
+async def cb_academy_exam_go(cb: CallbackQuery):
+    uid = cb.from_user.id
+    player = await aget_player(uid)
+    ok, err = acs.start_exam(player)
+    if not ok:
+        await cb.answer(err, show_alert=True)
+        return
     await asave_player(uid, player)
-    await cb.answer("📝 نتیجه اومد!" if ok else text, show_alert=not ok)
-    await cb.message.edit_text(text + "\n\n" + acs.status_text(player), reply_markup=_main_kb(player))
+    await cb.answer("✍️ موفق باشی!")
+    await _render_exam(cb, player)
+
+
+@no_double_tap()
+async def cb_academy_exam_answer(cb: CallbackQuery):
+    uid = cb.from_user.id
+    try:
+        _, sid, qi, opt = cb.data.split(":")
+        qi, opt = int(qi), int(opt)
+    except ValueError:
+        await cb.answer()
+        return
+    player = await aget_player(uid)
+    err = acs.submit_answer(player, sid, qi, opt)
+    await asave_player(uid, player)
+    await cb.answer(err or "✍️ ثبت شد", show_alert=bool(err))
+    await _render_exam(cb, player)
+
+
+@no_double_tap()
+async def cb_academy_exam_hint(cb: CallbackQuery):
+    uid = cb.from_user.id
+    try:
+        _, sid, qi = cb.data.split(":")
+        qi = int(qi)
+    except ValueError:
+        await cb.answer()
+        return
+    player = await aget_player(uid)
+    msg = acs.use_hint(player, sid, qi)
+    await asave_player(uid, player)
+    await cb.answer(msg)
+    await _render_exam(cb, player)
 
 
 async def cb_academy_ranking(cb: CallbackQuery):
@@ -88,6 +172,11 @@ async def cb_academy_back(cb: CallbackQuery):
     uid = cb.from_user.id
     player = await aget_player(uid)
     await cb.answer()
+    res = acs.pending_result(player)
+    if res is not None:
+        await asave_player(uid, player)
+        await cb.message.edit_text(res["text"] + "\n\n" + acs.status_text(player), reply_markup=_main_kb(player))
+        return
     await cb.message.edit_text(acs.status_text(player), reply_markup=_main_kb(player))
 
 
@@ -96,5 +185,8 @@ def register_academy_handlers(dp, bot):
     dp.callback_query.register(cb_academy_enroll, F.data == "academy_enroll")
     dp.callback_query.register(cb_academy_class, F.data.startswith("academy_class:"))
     dp.callback_query.register(cb_academy_exam, F.data == "academy_exam")
+    dp.callback_query.register(cb_academy_exam_go, F.data == "academy_exam_go")
+    dp.callback_query.register(cb_academy_exam_answer, F.data.startswith("acx:"))
+    dp.callback_query.register(cb_academy_exam_hint, F.data.startswith("acxh:"))
     dp.callback_query.register(cb_academy_ranking, F.data == "academy_ranking")
     dp.callback_query.register(cb_academy_back, F.data == "academy_back")
