@@ -25,6 +25,7 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.enums import ButtonStyle
 
+STEP_FIRST_LOOT   = "first_loot"     # 🆕 قدمِ اول: لوتِ امن (قبل از هر نبردی)
 STEP_AWAIT_ATTACK = "await_attack"
 STEP_AWAIT_KILL   = "await_kill"
 STEP_AWAIT_LOOT   = "await_loot"
@@ -61,7 +62,7 @@ def tutorial_kb_loot() -> ReplyKeyboardMarkup:
 def start_tutorial(player: dict) -> None:
     """بعد از ساختِ کاراکتر صدا زده می‌شه: مسیرِ تایپیِ سه‌قدمی شروع می‌شه."""
     player["tutorial_done"] = False
-    player["tutorial_step"] = STEP_AWAIT_ATTACK
+    player["tutorial_step"] = STEP_FIRST_LOOT
 
 
 def resume_kb(player: dict) -> ReplyKeyboardMarkup:
@@ -84,14 +85,18 @@ def resume_kb(player: dict) -> ReplyKeyboardMarkup:
 
 def welcome_text() -> str:
     return (
-        "🧭 **قدمِ اول:** کلمه‌ی «حمله» رو تایپ کن.\n"
-        "یه لیستِ دشمن می‌بینی — یکی رو انتخاب کن و بهش ضربه بزن. "
-        "بقیه‌ی بازی (گیلد، بازار، PvP و...) بعداً باز می‌شه؛ فعلاً فقط همینو امتحان کن."
+        "🧭 **قدمِ اول: لوت** — کلمه‌ی «لوت» رو تایپ کن، یه لوکیشن انتخاب کن و بگرد.\n"
+        "لوت امنه (خطری نداره) و بهت Zen، XP و آیتم می‌ده. تا لوت نکنی سراغِ «حمله» نرو — "
+        "با دستِ خالی جنگیدن آسون می‌کشتت. بعدِ لوت، نبرد رو بهت یاد می‌دم."
     )
 
 
 def resume_text(player: dict) -> str:
     """راهنمای «قدمِ بعد» بر اساسِ قدمِ فعلی (همه‌چی با تایپِ کلمه)."""
+    if player.get("tutorial_step") == STEP_FIRST_LOOT:
+        return welcome_text()
+    if player.get("tutorial_step") == STEP_AWAIT_ATTACK:
+        return _attack_step_text()
     if player.get("tutorial_step") == STEP_AWAIT_LOOT:
         return (
             "🧭 **قدمِ سوم:** کلمه‌ی «لوت» رو تایپ کن — یه مپ و یه لوکیشن "
@@ -120,10 +125,14 @@ def on_attack_resolved(player: dict, killed: bool) -> str | None:
         return None
     step = player.get("tutorial_step", STEP_AWAIT_ATTACK)
 
+    if step == STEP_FIRST_LOOT:
+        return "\n\n🧭 اول «لوت» رو تایپ کن؛ نبرد بعدِ لوته."
+
     if step in (STEP_AWAIT_ATTACK, STEP_AWAIT_KILL):
         if killed:
-            player["tutorial_step"] = STEP_AWAIT_LOOT
-            return LOOT_STEP_MARK + _first_kill_text()
+            player["tutorial_step"] = STEP_DONE
+            player["tutorial_done"] = True
+            return GRADUATION_MARK + _graduation_text()
         if step == STEP_AWAIT_ATTACK:
             player["tutorial_step"] = STEP_AWAIT_KILL
             return (
@@ -149,6 +158,9 @@ def on_loot_visited(player: dict) -> str | None:
     """
     if not is_in_tutorial(player):
         return None
+    if player.get("tutorial_step") == STEP_FIRST_LOOT:
+        player["tutorial_step"] = STEP_AWAIT_ATTACK
+        return _attack_step_text()
     player["tutorial_step"] = STEP_DONE
     player["tutorial_done"] = True
     return GRADUATION_MARK + _graduation_text()
@@ -168,6 +180,21 @@ def strip_graduation_mark(text: str) -> str:
         if text.startswith(mark):
             return text[len(mark):]
     return text
+
+
+def _attack_step_text() -> str:
+    return (
+        "\n\n🎉 **اولین لوتت تموم شد!**\n"
+        "🧭 **قدمِ دوم: نبرد** — حالا «حمله» رو تایپ کن و دشمنی رو بزن که کنارش "
+        "✅ پیشنهادی نوشته (🟢 امن). از 🔴 دوری کن."
+    )
+
+
+def attack_allowed(player: dict) -> tuple[bool, str]:
+    """تا اولین لوت انجام نشده، حمله بسته‌ست (پلیرِ لولِ ۱ با دستِ خالی می‌میره)."""
+    if is_in_tutorial(player) and player.get("tutorial_step") == STEP_FIRST_LOOT:
+        return False, welcome_text()
+    return True, ""
 
 
 def _first_kill_text() -> str:

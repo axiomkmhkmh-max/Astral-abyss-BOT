@@ -74,6 +74,12 @@ class MenuPanel:
         if debt > 0:
             lines.append(f"🏦 بدهی بانک: **${debt:,}**")
         lines.append(f"🎫 سطح: **{level}** — {rank_name}")
+        try:
+            from next_step import suggest
+            lines.append("")
+            lines.append("🧭 **قدمِ پیشنهادی:** " + suggest(player)["text"])
+        except Exception:
+            pass
         lines.append("")
         lines.append("از منوی زیر استفاده کن:")
         return "\n".join(lines)
@@ -85,6 +91,9 @@ class MenuPanel:
         # ردیفِ اول: پروفایل (تمام‌عرض)
         rows.append([InlineKeyboardButton(
             text=PROFILE_BTN_TEXT, callback_data=f"{PREFIX}:p:{uid}", style=ButtonStyle.PRIMARY)])
+
+        rows.append([InlineKeyboardButton(
+            text="🧭 قدمِ بعدی؟", callback_data=f"{PREFIX}:n:{uid}", style=ButtonStyle.PRIMARY)])
 
         buttons: list[InlineKeyboardButton] = []
 
@@ -182,6 +191,15 @@ def register_menu_panel(dp, bot, panel: MenuPanel, *, aget_player, story_badge_f
             pass
         await dp.feed_update(bot, upd)
 
+    @dp.message(F.text.in_({"قدم بعدی", "قدمِ بعدی", "چیکار کنم", "چیکار کنم؟", "/next"}))
+    async def cmd_next_step(msg):
+        from next_step import suggest
+        p = await aget_player(msg.from_user.id)
+        if not p or not p.get("class"):
+            await msg.reply("❌ اول باید کاراکترت رو بسازی! /start رو بزن.")
+            return
+        await msg.reply("🧭 " + suggest(p)["text"])
+
     @dp.callback_query(F.data.startswith(f"{PREFIX}:"))
     async def cb_menu(cb: CallbackQuery):
         parts = (cb.data or "").split(":")
@@ -221,6 +239,19 @@ def register_menu_panel(dp, bot, panel: MenuPanel, *, aget_player, story_badge_f
         player = await aget_player(owner)
         if not player or not player.get("class"):
             await cb.answer("❌ اول باید کاراکترت رو بسازی! /start رو بزن.", show_alert=True)
+            return
+
+        # ─ قدمِ بعدی
+        if action == "n":
+            from next_step import suggest
+            s = suggest(player)
+            words = {"attack": "حمله", "loot": "لوت", "story": panel.story_text,
+                     "hunt": "🏹 کوئست‌لاینِ شکار", "ascend": "/ascend",
+                     "heal": "/heal", "rest": "/rest", "status": PROFILE_ACTION_TEXT}
+            await cb.answer()
+            await cb.message.answer("🧭 " + s["text"])
+            if s["action"] in words:
+                await _run_as_typed(cb, words[s["action"]])
             return
 
         # ─ پروفایل

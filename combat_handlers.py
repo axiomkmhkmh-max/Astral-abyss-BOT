@@ -157,6 +157,10 @@ def apply_hardcore_death_penalty(player: dict, penalty_mult: float = 1.0) -> lis
     مجازات‌های مرگ (بجز بخش کاتانا که تو katana_core.py هندل می‌شه) رو
     اعمال می‌کنه و متن‌های نمایشی رو برمی‌گردونه.
     penalty_mult=2 برای مرگ حین خستگی شدید یا چالش (طبق بند ۵/۹)."""
+    from newbie_guard import is_newbie, light_death_lines
+    if is_newbie(player):
+        return light_death_lines(player)
+
     lines = []
 
     # ۱) ۲۰٪ کل Zen
@@ -595,6 +599,11 @@ async def cmd_attack(msg: Message):
     if not player:
         await msg.answer("❌ اول /start بزن!")
         return
+    import onboarding
+    _ok, _why = onboarding.attack_allowed(player)
+    if not _ok:
+        await msg.answer(_why)
+        return
     if player.get("hp", 100) <= 0:
         await msg.answer("💀 HP تو صفره! اول HP بگیر.\nاز /heal استفاده کن.")
         return
@@ -706,15 +715,19 @@ async def cb_atk_select(cb: CallbackQuery):
     buttons = []
     lines = [f"{atk['name']} رو انتخاب کردی — حالا بگو 🎯 **به کدوم دشمن بزنم؟**\n\n"]
 
+    from newbie_guard import danger_tag
+    _safest = min(range(len(enemies)), key=lambda k: enemies[k].get("dmg", 0)) if enemies else -1
     for i, enemy in enumerate(enemies):
         tier_emoji = {"common":"⚪","rare":"🔵","epic":"🟣","legendary":"🟡"}.get(enemy.get("tier","common"),"⚪")
+        d_emoji, d_label = danger_tag(player, enemy)
+        rec = " ✅ پیشنهادی" if i == _safest else ""
         lines.append(
-            f"{enemy['name']} {tier_emoji}\n"
+            f"{d_emoji} {enemy['name']} {tier_emoji} — {d_label}{rec}\n"
             f"   ❤️{enemy['hp']} | 💥{enemy['dmg']} | "
             f"⚡ضعف:{enemy.get('weak','—')} | 🎁{int(enemy['drop_chance']*100)}%\n"
         )
         buttons.append([InlineKeyboardButton(
-            text=f"{enemy['name']} {tier_emoji} (HP:{enemy['hp']})",
+            text=f"{d_emoji} {enemy['name']} {tier_emoji} (HP:{enemy['hp']}){' ✅' if i == _safest else ''}",
             callback_data=f"atk_enemy:{i}"
         , style=ButtonStyle.PRIMARY)])
 

@@ -156,6 +156,10 @@ def apply_hardcore_death_penalty(player: dict, penalty_mult: float = 1.0) -> lis
     مجازات‌های مرگ (بجز بخش کاتانا که تو katana_core.py هندل می‌شه) رو
     اعمال می‌کنه و متن‌های نمایشی رو برمی‌گردونه.
     penalty_mult=2 برای مرگ حین خستگی شدید یا چالش (طبق بند ۵/۹)."""
+    from newbie_guard import is_newbie, light_death_lines
+    if is_newbie(player):
+        return light_death_lines(player)
+
     lines = []
 
     # ۱) ۲۰٪ کل Zen
@@ -590,6 +594,11 @@ async def cmd_attack(msg: Message):
     player = await aget_player(uid)
     if not player:
         await msg.answer("❌ اول /start بزن!")
+        return
+    import onboarding
+    _ok, _why = onboarding.attack_allowed(player)
+    if not _ok:
+        await msg.answer(_why)
         return
     if player.get("hp", 100) <= 0:
         await msg.answer("💀 HP تو صفره! اول HP بگیر.\nاز /heal استفاده کن.")
