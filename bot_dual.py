@@ -51,6 +51,7 @@ from gap_curse_handlers import register_gap_curse_handlers
 from gap_social_games_handlers import register_gap_social_games_handlers
 from gap_skill_handlers import register_gap_skill_handlers
 from gap_ai_handlers import register_gap_ai_handlers
+from gap_group_events import register_gap_group_events_handlers
 
 # همون فیکسِ bot.py: INFO می‌ره stdout، فقط WARNING به بالا می‌ره stderr
 # — تا Railway لاگ‌های سالم رو اشتباهی error نشون نده.
@@ -114,6 +115,7 @@ async def run_gap_side():
     register_gap_workshop_handlers(dp)  # 🔄 صرافیِ متریال | 🗺️ دستورهای نقشه | 📯 کدکسِ کالکشن
     register_gap_skill_handlers(dp)  # 🩹 باگ‌فیکس: /skills و خرجِ امتیازِ مهارت روی گپ اصلاً پورت نشده بود
     register_gap_ai_handlers(dp)  # 🤖 دستیار هوش مصنوعی (/ask)
+    register_gap_group_events_handlers(dp)  # 👹📦🚪 باس/صندوق/هیولا/دانجنِ گروهی (/graid /gevents)
     # ─── بقیه‌ی هندلرها (auction, boss, katana, quest, ...) رو همینجا
     # به همین شکل اضافه کن، هر کدوم تو فایلِ gap_<system>_handlers.py
     # خودشون register_gap_xxx_handlers(dp) رو expose می‌کنن.
