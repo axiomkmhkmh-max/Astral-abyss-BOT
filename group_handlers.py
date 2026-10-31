@@ -132,7 +132,10 @@ def _name_lookup_factory():
     return _name_of
 
 
-async def _send_boss_art(msg: Message, boss: dict) -> None:
+_ART_LAST: dict[int, float] = {}
+
+
+async def _send_boss_art(msg: Message, boss: dict, min_gap: float = 0) -> None:
     """عکسِ فازِ ۱ی باس رو (اگه تو assets/group_events باشه) قبل از پیامِ وضعیت می‌فرسته.
     هر خطایی (نبودنِ عکس، سایز، تلگرام) بی‌صدا نادیده گرفته می‌شه و رِید متنی ادامه پیدا می‌کنه."""
     try:
@@ -144,9 +147,13 @@ async def _send_boss_art(msg: Message, boss: dict) -> None:
             element = tpl["phases"][0]["resist"]
         except Exception:
             element = "arcane"
-        path = gm.boss_image(tid, 0, element, chat_id=None)
+        if min_gap and time.time() - _ART_LAST.get(msg.chat.id, 0) < min_gap:
+            return
+        phase = max(0, min(int(boss.get("phase_index", 0) or 0), max(0, len(tpl.get("phases", [])) - 1)))
+        path = gm.boss_image(tid, phase, element, chat_id=None)
         if not path:
             return
+        _ART_LAST[msg.chat.id] = time.time()
         await msg.answer_photo(FSInputFile(path), caption=f"{boss.get('name', '')} — {boss.get('title', '')}".strip(" —")[:900])
     except Exception as e:  # noqa: BLE001
         log_sync(f"🟠 group raid art skipped: {e}", "ERROR")
@@ -189,6 +196,7 @@ async def cmd_graid(msg: Message):
     if boss and boss.get("alive"):
         be.tick_shield_regen(boss)
         await asyncio.to_thread(save_group_boss, chat_id, boss)
+        await _send_boss_art(msg, boss, min_gap=90)      # /graid ساده هم عکسِ فازِ فعلی (حداکثر هر ۹۰ ثانیه)
         await msg.answer(await _status_with_top(chat_id, boss), reply_markup=_build_kb(chat_id, boss))
         return
 

@@ -43,7 +43,8 @@ from gap_event_world import (
 
 log = logging.getLogger("gap.events.media")
 
-ASSET_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "group_events")
+# عکس‌ها مستقیم کنارِ همین فایل (پوشه‌ی اصلیِ پروژه) گذاشته می‌شن — بدونِ هیچ پوشه‌ای.
+ASSET_ROOT = os.path.dirname(os.path.abspath(__file__))
 SUBDIRS = ("bosses", "boxes", "dungeons", "monsters")
 # ترتیبِ ترجیح وقتی از یه نام چند پسوند هست (png/jpg قطعاً توسطِ گپ پذیرفته می‌شن؛ webp رو آخر می‌ذاریم)
 EXT_PREF = (".jpg", ".jpeg", ".png", ".webp")
@@ -84,23 +85,49 @@ def reset_cache():
 def set_asset_root(path: str):
     global ASSET_ROOT
     ASSET_ROOT = path
+    EXTRA_ROOTS.clear()           # برای تست/ابزار: وقتی ریشه رو دستی می‌دی، جایِ دیگه‌ای نگاه نمی‌شه
     reset_cache()
 
 
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# پوشه‌های قدیمی (اختیاری): اگه assets/ هست هنوز خونده می‌شه، ولی لازم نیست.
+EXTRA_ROOTS: list[tuple[str, bool]] = [(os.path.join(_BASE_DIR, "assets"), True)]
+# عکس‌های خودِ بازی تو ریشه‌ی پروژه که هرگز نباید جای آرتِ رویداد بیان
+_NOT_EVENT_ART = {"world_map", "black_market"}
+_PLAIN_OK: set[str] = set()   # مسیرهایی که عکسِ «بدونِ اسمِ خاص»شون مجازه برای جایگزینِ شل باشه
+
+
 def _build_index() -> dict[str, str]:
-    found: dict[str, tuple[int, str]] = {}
-    if not os.path.isdir(ASSET_ROOT):
-        return {}
-    for dirpath, _dirs, files in os.walk(ASSET_ROOT):
-        for fn in files:
-            stem, ext = os.path.splitext(fn)
-            ext = ext.lower()
-            if ext not in EXT_PREF:
-                continue
-            key = stem.lower()
-            rank = EXT_PREF.index(ext)
-            if key not in found or rank < found[key][0]:
-                found[key] = (rank, os.path.join(dirpath, fn))
+    """stem → مسیر. ASSET_ROOT (پیش‌فرض: خودِ پوشه‌ی پروژه، غیرِ بازگشتی)، بعد assets/ (اگه بود)."""
+    found: dict[str, tuple[tuple[int, int], str]] = {}
+    plain_ok: set[str] = set()
+    roots: list[tuple[str, bool, int]] = [(ASSET_ROOT, os.path.abspath(ASSET_ROOT) != os.path.abspath(_BASE_DIR), 0)]
+    roots += [(r, rec, i + 1) for i, (r, rec) in enumerate(EXTRA_ROOTS)]
+    seen_roots = set()
+    for root, recursive, rr in roots:
+        root = os.path.abspath(root)
+        if root in seen_roots or not os.path.isdir(root):
+            continue
+        seen_roots.add(root)
+        walker = os.walk(root) if recursive else [(root, [], os.listdir(root))]
+        for dirpath, _dirs, files in walker:
+            for fn in files:
+                stem, ext = os.path.splitext(fn)
+                ext = ext.lower()
+                if ext not in EXT_PREF:
+                    continue
+                key = stem.lower()
+                if key in _NOT_EVENT_ART:
+                    continue
+                path = os.path.join(dirpath, fn)
+                if not os.path.isfile(path):
+                    continue
+                rank = (rr, EXT_PREF.index(ext))
+                if key not in found or rank < found[key][0]:
+                    found[key] = (rank, path)
+                plain_ok.add(path)
+    _PLAIN_OK.clear()
+    _PLAIN_OK.update(plain_ok)
     return {k: v[1] for k, v in found.items()}
 
 
@@ -167,7 +194,7 @@ def _loose_pick(kind: str, chat_id: int | None = None) -> Optional[str]:
                 if kind == "dungeon" and ("final" in stem or "room" in stem):
                     continue
                 named.append(path)
-            elif not any(w in stem for w in _ALL_WORDS):
+            elif path in _PLAIN_OK and not any(w in stem for w in _ALL_WORDS):
                 plain.append(path)
         pool = named or plain
         if not pool:
