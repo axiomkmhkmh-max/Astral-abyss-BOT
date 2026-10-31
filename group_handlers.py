@@ -159,6 +159,38 @@ async def _send_boss_art(msg: Message, boss: dict, min_gap: float = 0) -> None:
         log_sync(f"🟠 group raid art skipped: {e}", "ERROR")
 
 
+async def cmd_gassets_tg(msg: Message):
+    """عیب‌یابیِ آرت: ربات چه عکس‌هایی می‌بینه و برای باسِ فعلیِ این گروه چی انتخاب می‌شه؟ (برای همه، فقط اطلاعات)"""
+    try:
+        import gap_event_media as gm
+        from aiogram.types import FSInputFile
+        gm.reset_cache()
+        idx = gm._index()
+        names = sorted(idx)
+        lines = ["🖼 **عیب‌یابیِ آرتِ رِید** (نسخه‌ی art-v3)", f"📂 پوشه: `{gm.ASSET_ROOT}`",
+                 f"🔢 عکس‌های پیداشده: {len(names)}"]
+        if names:
+            lines.append("، ".join(names[:15]) + ("…" if len(names) > 15 else ""))
+        else:
+            lines.append("⚠️ هیچ عکسی پیدا نشد. عکس (jpg/png/webp) رو کنارِ bot_dual.py بذار و دیپلوی کن.")
+        boss = await asyncio.to_thread(get_group_boss, msg.chat.id) if _is_group_event(msg) else None
+        path = None
+        if boss and boss.get("alive"):
+            tid = boss.get("template_id") or ""
+            tpl = be.WORLD_BOSS_TEMPLATES.get(tid) or {}
+            try:
+                el = tpl["phases"][0]["resist"]
+            except Exception:
+                el = "arcane"
+            path = gm.boss_image(tid, int(boss.get("phase_index", 0) or 0), el)
+            lines.append(f"👹 باسِ فعلی: `{tid}` → عکس: `{path or 'هیچی'}`")
+        await msg.answer("\n".join(lines))
+        if path:
+            await msg.answer_photo(FSInputFile(path), caption="✅ تستِ ارسالِ عکس")
+    except Exception as e:  # noqa: BLE001
+        await msg.answer(f"❌ خطا تو عیب‌یابی: {e}")
+
+
 # ─── /graid — شروع یا نمایشِ وضعیتِ رِید ─────────────────────────
 
 async def cmd_graid(msg: Message):
@@ -619,6 +651,7 @@ async def _membership_middleware(handler, event: Message, data: dict):
 
 def register_group_handlers(dp: Dispatcher, bot: Bot):
     dp.message.register(cmd_graid, Command("graid"))
+    dp.message.register(cmd_gassets_tg, Command("gassets"))
     dp.message.register(cb_graid_hit, Command("graidhit"))
     dp.callback_query.register(cb_graid_hit, F.data.startswith("graidhit:"))
     dp.message.register(cb_graid_defend, Command("graiddef"))
