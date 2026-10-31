@@ -132,6 +132,26 @@ def _name_lookup_factory():
     return _name_of
 
 
+async def _send_boss_art(msg: Message, boss: dict) -> None:
+    """عکسِ فازِ ۱ی باس رو (اگه تو assets/group_events باشه) قبل از پیامِ وضعیت می‌فرسته.
+    هر خطایی (نبودنِ عکس، سایز، تلگرام) بی‌صدا نادیده گرفته می‌شه و رِید متنی ادامه پیدا می‌کنه."""
+    try:
+        import gap_event_media as gm
+        from aiogram.types import FSInputFile
+        tid = boss.get("template_id") or ""
+        tpl = be.WORLD_BOSS_TEMPLATES.get(tid) or {}
+        try:
+            element = tpl["phases"][0]["resist"]
+        except Exception:
+            element = "arcane"
+        path = gm.boss_image(tid, 0, element, chat_id=None)
+        if not path:
+            return
+        await msg.answer_photo(FSInputFile(path), caption=f"{boss.get('name', '')} — {boss.get('title', '')}".strip(" —")[:900])
+    except Exception as e:  # noqa: BLE001
+        log_sync(f"🟠 group raid art skipped: {e}", "ERROR")
+
+
 # ─── /graid — شروع یا نمایشِ وضعیتِ رِید ─────────────────────────
 
 async def cmd_graid(msg: Message):
@@ -159,6 +179,7 @@ async def cmd_graid(msg: Message):
             return
         boss = await asyncio.to_thread(spawn_group_boss, chat_id)
         log_sync(f"👥👹 **GROUP RAID FORCE-RESTARTED**\n📍 چت: `{chat_id}`\n🛠 ادمین: `{msg.from_user.id}`", "GROUP")
+        await _send_boss_art(msg, boss)
         await msg.answer(
             f"🛠 ادمین رِید رو دوباره شروع کرد!\n\n{await _status_with_top(chat_id, boss)}",
             reply_markup=_build_kb(chat_id, boss),
@@ -181,6 +202,7 @@ async def cmd_graid(msg: Message):
 
     boss = await asyncio.to_thread(spawn_group_boss, chat_id, template_id)
     log_sync(f"👥👹 **GROUP RAID STARTED**\n📍 چت: `{chat_id}`\n🏷️ {boss['name']}\n🚀 شروع‌کننده: `{msg.from_user.id}`", "GROUP")
+    await _send_boss_art(msg, boss)
     await msg.answer(
         f"👥 **رِیدِ باسِ این گروه شروع شد!**\nهرکی تو این گروه هست می‌تونه با دکمه‌ی زیر (یا `/graidhit`) بزنتش.\n\n"
         + await _status_with_top(chat_id, boss),

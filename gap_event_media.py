@@ -144,6 +144,43 @@ def pick_image(*bases: str, chat_id: int | None = None) -> Optional[str]:
     return None
 
 
+# جایگزینِ «شل»: اگه هیچ فایلی با اسمِ دقیق نبود، هر عکسی که اسمش به نوعِ رویداد می‌خوره
+# (مثلاً *boss*، *box*/*chest*، *dungeon*، *ambush*/*monster*) یا اصلاً اسمِ خاصی نداره
+# (مثلاً IMG_001.jpg) استفاده می‌شه. فایل‌ها هرجایی تو assets/group_events باشن (پوشه لازم نیست).
+_KIND_WORDS = {"boss": ("boss",), "box": ("box", "chest"), "dungeon": ("dungeon",),
+               "ambush": ("ambush", "monster")}
+# اسمِ استانداردِ یه باسِ مشخص/نوعِ دیگه — «شل» نباید عکسِ باسِ دیگه رو به این باس بده
+_STRICT_RE = re.compile(r"^(boss_.+_p\d+|boss_.+_defeated|box_.+_(closed|open)|dungeon_.+|ambush_.+)(_[a-z0-9]{1,3})?$")
+_ALL_WORDS = tuple(w for ws in _KIND_WORDS.values() for w in ws) + ("defeated", "generic", "final", "room")
+
+
+def _loose_pick(kind: str, chat_id: int | None = None) -> Optional[str]:
+    try:
+        words = _KIND_WORDS[kind]
+        named, plain = [], []
+        for stem, path in _index().items():
+            if _STRICT_RE.match(stem):
+                continue                                  # فایلِ استانداردِ یه آیتمِ مشخص → فقط با اسمِ دقیق
+            if any(w in stem for w in words):
+                if kind == "boss" and ("defeated" in stem or "dungeon" in stem or "generic" in stem):
+                    continue                          # جایگزینِ عنصری/شکست رو قاطی نمی‌کنیم (عنصرِ اشتباه)
+                if kind == "dungeon" and ("final" in stem or "room" in stem):
+                    continue
+                named.append(path)
+            elif not any(w in stem for w in _ALL_WORDS):
+                plain.append(path)
+        pool = named or plain
+        if not pool:
+            return None
+        last = _LAST_PICK.get((chat_id, "loose:" + kind))
+        pool2 = [f for f in pool if f != last] or pool
+        choice = random.choice(pool2)
+        _LAST_PICK[(chat_id, "loose:" + kind)] = choice
+        return choice
+    except Exception:  # noqa: BLE001
+        return None
+
+
 # ============================================================
 #  انتخابِ عکسِ هر رویداد (همه None برمی‌گردونن اگه عکسی نباشه)
 # ============================================================
@@ -152,7 +189,7 @@ def boss_image(tid: str, phase_index: int, element: str, chat_id: int | None = N
     بعد جایگزینِ عنصریِ همون عنصر؛ وگرنه None (پیامِ متنی)."""
     bases = [f"boss_{tid}_p{p + 1}" for p in range(phase_index, -1, -1)]
     bases += [f"boss_generic_{element}_p{p + 1}" for p in range(phase_index, -1, -1)]
-    return pick_image(*bases, chat_id=chat_id)
+    return pick_image(*bases, chat_id=chat_id) or _loose_pick("boss", chat_id)
 
 
 def boss_defeated_image(tid: str, element: str, chat_id: int | None = None) -> Optional[str]:
@@ -165,11 +202,12 @@ def chest_image(box_id: str, opened: bool, chat_id: int | None = None) -> Option
     bases = [f"box_{m['asset']}_{state}"]
     if m.get("alt"):
         bases.append(f"box_{m['alt']}_{state}")
-    return pick_image(*bases, chat_id=chat_id)
+    got = pick_image(*bases, chat_id=chat_id)
+    return got or (None if opened else _loose_pick("box", chat_id))   # برای «باز» عکسِ دلخواه نمی‌ذاریم
 
 
 def dungeon_image(dtype: str, chat_id: int | None = None) -> Optional[str]:
-    return pick_image(f"dungeon_{dtype}", chat_id=chat_id)
+    return pick_image(f"dungeon_{dtype}", chat_id=chat_id) or _loose_pick("dungeon", chat_id)
 
 
 def dungeon_room_image(dtype: str, chat_id: int | None = None) -> Optional[str]:
@@ -181,7 +219,7 @@ def dungeon_final_image(dtype: str, chat_id: int | None = None) -> Optional[str]
 
 
 def monster_image(key: str, chat_id: int | None = None) -> Optional[str]:
-    return pick_image(f"ambush_{key}", chat_id=chat_id)
+    return pick_image(f"ambush_{key}", chat_id=chat_id) or _loose_pick("ambush", chat_id)
 
 
 def has_monster_art(key: str) -> bool:
