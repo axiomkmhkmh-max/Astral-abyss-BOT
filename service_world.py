@@ -107,7 +107,7 @@ async def boss_hit(uid: int, sid: str):
         return "cool", wait
     b = BOSS_BY_ID[sess["boss_id"]]
     rng = random.Random()
-    if trait == "dodge" and sess["hits"] % 5 in (1, 3):
+    if trait == "dodge" and rng.random() < 0.40:  # (was hits % 5, but hits only grows on a landed hit -> evaded forever)
         return "evade", 0
     if trait == "illusion" and rng.random() < 0.30:
         return "evade", 0
