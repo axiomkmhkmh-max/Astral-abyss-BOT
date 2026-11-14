@@ -223,15 +223,21 @@ async def _pay(doc: dict, killed: bool):
             await add_xp(uid, int(xp), "boss", apply_rate=True)
         if coins:
             await add_coins(uid, int(coins), "boss")
-        if killed and paid and (last or rank < 3):
-            iid = await roll_drop(uid, source_mult=2.0, weapon_chance=0.2)
-            if await inv_add(uid, iid, 1):
-                drops[uid] = iid
-        if killed and paid and rank < 5 and random.random() < 0.30:
-            pool = EVO_BY_RARITY[RARITIES[min(3, lvl // 25)]] or EVO_BY_RARITY["Common"]
-            eid = random.choice(pool)
-            if await inv_add(uid, eid, 1):
-                evo_drops[uid] = eid
+        # boss loot is a reward for the kill: never silently lost to a full bag (force), and a failure for one
+        # player must not abort the payout of everyone else
+        try:
+            if killed and paid and (last or rank < 3):
+                iid = await roll_drop(uid, source_mult=2.0, weapon_chance=0.2)
+                if await inv_add(uid, iid, 1, force=True):
+                    drops[uid] = iid
+            if killed and paid and rank < 5 and random.random() < 0.30:
+                pool = EVO_BY_RARITY[RARITIES[min(3, lvl // 25)]] or EVO_BY_RARITY["Common"]
+                eid = random.choice(pool)
+                if await inv_add(uid, eid, 1, force=True):
+                    evo_drops[uid] = eid
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("boss loot failed for uid=%s", uid)
         if killed:
             await bump_quest(uid, "boss_kill", 1)
         await season_add(uid, season_pts_boss(share, killed) + (3 if paid else 0), ch["name"])
